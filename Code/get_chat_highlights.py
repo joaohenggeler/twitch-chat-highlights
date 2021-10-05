@@ -12,15 +12,18 @@ from datetime import datetime, timedelta
 from math import ceil, floor
 
 import matplotlib.pyplot as plt
-import twitch
-from matplotlib.dates import DateFormatter
+from matplotlib.dates import DateFormatter, MinuteLocator
+from matplotlib.ticker import MultipleLocator
+from twitch import Helix
 
 ####################################################################################################
 
-with open('config.json') as file:
-	CONFIG = json.loads(file.read())
+# Read the configurations file, connect to the database, and setup the Twitch API for a given channel.
 
-helix = twitch.Helix(CONFIG['client_id'], bearer_token=CONFIG['access_token'], use_cache=True)
+with open('config.json') as file:
+	CONFIG = json.load(file)
+
+helix = Helix(CONFIG['client_id'], bearer_token=CONFIG['access_token'], use_cache=True)
 channel_name = CONFIG['highlights']['channel'].lower()
 user = helix.user(channel_name)
 
@@ -47,21 +50,27 @@ except sqlite3.Error as error:
 
 ####################################################################################################
 
+# Find any VODs in a given time period and assign the correct video IDs to the previously collected
+# chat messages.
+
 begin_datetime = datetime.strptime(CONFIG['highlights']['begin_date'], '%Y-%m-%d')
 end_datetime = begin_datetime + timedelta(days=CONFIG['highlights']['num_days'])
 
 begin_date = begin_datetime.strftime('%Y-%m-%d')
 end_date = end_datetime.strftime('%Y-%m-%d')
 
+# For a negative number of days.
 if end_date < begin_date:
 	begin_date, end_date = end_date, begin_date
 
+# Search in the Past Broadcasts section.
 for i, video in enumerate(user.videos(type='archive')):
 
 	if video.created_at < begin_date:
 		break
 	elif begin_date <= video.created_at <= end_date:
 		
+		# Duration format: 00h00m00s
 		duration = video.duration.replace('h', ':').replace('m', ':').replace('s', '')
 		hours, minutes, seconds = duration.split(':')
 		hours, minutes, seconds = int(hours), int(minutes), int(seconds)
@@ -96,6 +105,10 @@ for i, video in enumerate(user.videos(type='archive')):
 
 ####################################################################################################
 
+# Iterate over each VOD and its chat for the requested time period. For each VOD, we'll count the
+# number of times a specific word/emote was sent in the chat, and also generate a plot with each
+# highlight category's word frequency.
+
 try:
 	cursor = db.execute('SELECT * FROM Video WHERE ChannelId = :channel_id AND CreationTime BETWEEN :begin_date AND :end_date;',
 						{'channel_id': channel_id, 'begin_date': begin_date, 'end_date': end_date})
@@ -103,6 +116,10 @@ try:
 	video_list = [dict(row) for row in cursor]
 except sqlite3.Error as error:
 	print(f'Failed to retrieve the videos between {begin_date} and {end_date} with the error: {repr(error)}')
+	sys.exit(1)
+
+if not video_list:
+	print(f'Could not find any videos in the "{channel_name}" channel between {begin_date} and {end_date}.')
 	sys.exit(1)
 
 print(f'Found {len(video_list)} videos in the "{channel_name}" channel between {begin_date} and {end_date}.')
@@ -113,8 +130,7 @@ message_threshold = CONFIG['highlights']['message_threshold']
 highlight_types = CONFIG['highlights']['types']
 
 for highlight in highlight_types:
-	lower_word_list = [word.lower() for word in highlight['words']]
-	highlight.update({'words': lower_word_list})
+	highlight['words'] = [word.lower() for word in highlight['words']]
 
 for i, video_row in enumerate(video_list):
 
@@ -130,8 +146,8 @@ for i, video_row in enumerate(video_list):
 	
 	video_row['frequency'] = {}
 	for highlight in highlight_types:
-		highlight_title = highlight['title']
-		video_row['frequency'][highlight_title] = [0] * num_buckets
+		name = highlight['name']
+		video_row['frequency'][name] = [0] * num_buckets
 
 	try:
 		cursor = db.execute('''
@@ -152,42 +168,43 @@ for i, video_row in enumerate(video_list):
 
 	for chat_row in cursor:
 
-		assert 	begin_date <= chat_row['Timestamp'] <= end_date, 'The chat message was not sent during the live stream.'
+		assert begin_date <= chat_row['Timestamp'] <= end_date, 'The chat message was not sent during the live stream.'
 
 		word_list = chat_row['Message'].lower().split()
 		bucket = floor(chat_row['Offset'] / bucket_length)
 
 		for highlight in highlight_types:
-			highlight_title = highlight['title']
+			name = highlight['name']
 			for word in word_list:
 				if word in highlight['words']:
-					video_row['frequency'][highlight_title][bucket] += 1
+					video_row['frequency'][name][bucket] += 1
 					break
 
-	title = video_row['Title']
-	creation_time = video_row['CreationTime']
-	
-	creation_datetime = datetime.fromisoformat(creation_time)
-	end_datetime = creation_datetime + timedelta(seconds=duration_in_seconds)
+	# Plot the word frequency.
 
 	figure, axis = plt.subplots(figsize=(12, 6))
 
+	title = video_row['Title']
+	creation_time = video_row['CreationTime']
+	creation_datetime = datetime.fromisoformat(creation_time)
+
 	for highlight in highlight_types:
-		highlight_title = highlight['title']
-		y_data = video_row['frequency'][highlight_title]
+		name = highlight['name']
+		y_data = video_row['frequency'][name]
 		x_data = [creation_datetime + timedelta(seconds=i*bucket_length) for i in range(len(y_data))]
-		axis.plot(x_data, y_data, label=highlight_title, color=highlight['color'], linewidth=0.7)
+		axis.plot(x_data, y_data, label=name, color=highlight['color'], linewidth=0.7)
 
 	axis.axhline(y=message_threshold, linestyle='dashed', label=f'Threshold ({message_threshold})', color='k')
-	axis.set_xlim(creation_datetime, end_datetime)
 
 	creation_time = creation_datetime.strftime('%Y-%m-%d %H:%M:%S')
 	video_url = f'https://www.twitch.tv/videos/{twitch_id}'
 	axis.set(xlabel=f'Time in Buckets of {bucket_length} Seconds (UTC)', ylabel='Number of Messages', title=f'"{title}" ({creation_time}, {duration})\n{video_url}')
 	axis.legend()
 	
-	datetime_formatter = DateFormatter("%Hh%M")
+	datetime_formatter = DateFormatter('%Hh%M')
 	axis.xaxis.set_major_formatter(datetime_formatter)
+	axis.xaxis.set_major_locator(MinuteLocator(byminute=[0, 30]))
+	axis.yaxis.set_major_locator(MultipleLocator(5))
 
 	figure.tight_layout()
 
@@ -196,41 +213,93 @@ for i, video_row in enumerate(video_list):
 	print(f'- Saved the plot to "{plot_filename}".')
 
 ####################################################################################################
+
+# Compare some of the previous categories against each other and compute the final balance. E.g. the number of +2 vs -2.
+
+compare_types = CONFIG['highlights']['compare']
+for compare in compare_types:
+	compare['positive_highlight'] = next(highlight for highlight in highlight_types if highlight['name'] == compare['positive'])
+	compare['negative_highlight'] = next(highlight for highlight in highlight_types if highlight['name'] == compare['negative'])
+
+for video_row in video_list:
+	for compare in compare_types:
+
+		positive_highlight_name = compare['positive_highlight']['name']
+		negative_highlight_name = compare['negative_highlight']['name']
+
+		positive_frequency = video_row['frequency'][positive_highlight_name]
+		negative_frequency = video_row['frequency'][negative_highlight_name]
+
+		positive_balance_name  = compare['positive_name']
+		negative_balance_name  = compare['negative_name']
+		controversial_balance_name  = compare['controversial_name']
+
+		def measure_controversy(positive_count: int, negative_count: int) -> float:
+			return (positive_count + negative_count) / (abs(positive_count - negative_count) + 1)
+
+		video_row['frequency'][positive_balance_name] = [positive_count - negative_count for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
+		video_row['frequency'][negative_balance_name] = [-count for count in video_row['frequency'][positive_balance_name]]
+		video_row['frequency'][controversial_balance_name] = [measure_controversy(positive_count, negative_count) for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
+
+for compare in compare_types:
+	for kind in ['positive', 'negative', 'controversial']:
+
+		balance_highlight = {}
+		balance_highlight['name'] = compare[kind + '_name']
+		balance_highlight['top'] = compare['top']
+		balance_highlight['is_compare'] = True
+
+		if kind == 'controversial':
+			balance_highlight['words'] = ['See Above']
+		else:
+			balance_highlight['words'] = compare[kind + '_highlight']['words']
+
+		highlight_types.append(balance_highlight)
+
+####################################################################################################
+
+# Create a text file linking to the top highlights for each word/emote category.
+
 print(f'Summarizing the top highlights.')
 print()
 
 summary_text = f'Twitch Chat Highlights ({begin_date} to {end_date}):\n\n'
-Candidate = namedtuple('Candidate', ['TwitchId', 'TimeDelta', 'Count'])
+Candidate = namedtuple('Candidate', ['TwitchId', 'Bucket', 'Count'])
 
 for highlight in highlight_types:
-	highlight_title = highlight['title']
-	highlight_top = highlight['top']
+	name = highlight['name']
+	top = highlight['top']
+	is_compare = highlight.get('is_compare', False)
 
 	highlight_candidates = []
 	for video_row in video_list:	
-		frequency = video_row['frequency'][highlight_title]
-		candidates = [Candidate(video_row['TwitchId'], timedelta(seconds=i*bucket_length), count) for i, count in enumerate(frequency) if count > message_threshold]
-		highlight_candidates.extend(candidates)
-
+		
+		frequency = video_row['frequency'][name]
+		for i, count in enumerate(frequency):
+			if count > message_threshold or is_compare:
+				highlight_candidates.append(Candidate(video_row['TwitchId'], i, count))
+		
 	highlight_candidates = sorted(highlight_candidates, key=lambda x: x.Count, reverse=True)
-	highlight_candidates[:highlight_top]
+	highlight_candidates = highlight_candidates[:top]
 
-	summary_text += f'{highlight_title} (most ' + ', '.join(highlight['words']) + '):\n'
+	summary_text += '[BALANCE] ' if is_compare else ''
+	summary_text += f'{name} (' + ', '.join(highlight['words']) + '):\n'
 
 	if highlight_candidates:
 
 		for i, candidate in enumerate(highlight_candidates):
-			timestamp = candidate.TimeDelta - timedelta(seconds=CONFIG['highlights']['top_url_delay'])
+			# VOD timestamp format: 00h00m00s
+			timestamp = timedelta(seconds=candidate.Bucket * bucket_length) - timedelta(seconds=CONFIG['highlights']['top_url_delay'])
 			timestamp = str(timestamp).replace(':', 'h', 1).replace(':', 'm', 1) + 's'
 			highlight_url = f'https://www.twitch.tv/videos/{candidate.TwitchId}?t={timestamp}'
-			summary_text += f'{i+1}. {highlight_url} ({candidate.Count})\n'
+			summary_text += f'{i+1}. [{candidate.Count}] {highlight_url}\n'
 
 	else:
 		summary_text += 'No highlights found.\n'
 
 	summary_text += '\n'
 
-	print(f'- Found {len(highlight_candidates)} "{highlight_title}" highlights.')
+	print(f'- Found {len(highlight_candidates)} "{name}" highlights.')
 
 print()
 

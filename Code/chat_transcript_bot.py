@@ -15,7 +15,7 @@ from keep_alive import keep_alive
 ####################################################################################################
 
 with open('config.json') as file:
-	CONFIG = json.loads(file.read())
+	CONFIG = json.load(file)
 
 if 'access_token' not in CONFIG:
 	
