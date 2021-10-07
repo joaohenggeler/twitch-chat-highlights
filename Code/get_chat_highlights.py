@@ -5,6 +5,7 @@
 """
 
 import json
+import re
 import sqlite3
 import sys
 from collections import namedtuple
@@ -12,8 +13,7 @@ from datetime import datetime, timedelta
 from math import ceil, floor
 
 import matplotlib.pyplot as plt
-from matplotlib.dates import DateFormatter, MinuteLocator
-from matplotlib.ticker import MultipleLocator
+from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 from twitch import Helix
 
 ####################################################################################################
@@ -130,7 +130,19 @@ message_threshold = CONFIG['highlights']['message_threshold']
 highlight_types = CONFIG['highlights']['types']
 
 for highlight in highlight_types:
-	highlight['words'] = [word.lower() for word in highlight['words']]
+	
+	search_words = []
+	for word in highlight['words']:
+		
+		if word.startswith('regex:'):
+			_, word = word.split('regex:', 1)
+			word = re.compile(word, re.IGNORECASE)
+		else:
+			word = word.lower()
+		
+		search_words.append(word)
+
+	highlight['search_words'] = search_words
 
 for i, video_row in enumerate(video_list):
 
@@ -174,10 +186,26 @@ for i, video_row in enumerate(video_list):
 		bucket = floor(chat_row['Offset'] / bucket_length)
 
 		for highlight in highlight_types:
+			
 			name = highlight['name']
+			skip_to_next_highlight = False
+
 			for word in word_list:
-				if word in highlight['words']:
-					video_row['frequency'][name][bucket] += 1
+				
+				for search_word in highlight['search_words']:
+
+					match = False
+					if isinstance(search_word, str):
+						match = (word == search_word)
+					else:
+						match = search_word.match(word)
+
+					if match:
+						video_row['frequency'][name][bucket] += 1
+						skip_to_next_highlight = True
+						break					
+
+				if skip_to_next_highlight:
 					break
 
 	# Plot the word frequency.
@@ -191,26 +219,35 @@ for i, video_row in enumerate(video_list):
 	for highlight in highlight_types:
 		name = highlight['name']
 		y_data = video_row['frequency'][name]
-		x_data = [creation_datetime + timedelta(seconds=i*bucket_length) for i in range(len(y_data))]
+		x_data = [i*bucket_length for i in range(len(y_data))]
 		axis.plot(x_data, y_data, label=name, color=highlight['color'], linewidth=0.7)
 
 	axis.axhline(y=message_threshold, linestyle='dashed', label=f'Threshold ({message_threshold})', color='k')
 
 	creation_time = creation_datetime.strftime('%Y-%m-%d %H:%M:%S')
 	video_url = f'https://www.twitch.tv/videos/{twitch_id}'
-	axis.set(xlabel=f'Time in Buckets of {bucket_length} Seconds (UTC)', ylabel='Number of Messages', title=f'"{title}" ({creation_time}, {duration})\n{video_url}')
+	axis.set(xlabel=f'Time in Buckets of {bucket_length} Seconds', ylabel='Number of Messages', title=f'"{title}" ({creation_time}, {duration})\n{video_url}')
 	axis.legend()
 	
-	datetime_formatter = DateFormatter('%Hh%M')
-	axis.xaxis.set_major_formatter(datetime_formatter)
-	axis.xaxis.set_major_locator(MinuteLocator(byminute=[0, 30]))
+	def seconds_formatter(num_seconds, position):
+		label, _ = str(timedelta(seconds=num_seconds)).rsplit(':', 1)
+		return label.replace(':', 'h', 1)
+
+	axis.xaxis.set_major_formatter(seconds_formatter)
+	axis.xaxis.set_major_locator(MultipleLocator(30*60))
+	axis.xaxis.set_minor_locator(AutoMinorLocator(4))	
 	axis.yaxis.set_major_locator(MultipleLocator(5))
+
+	axis.tick_params(axis='x', which='major', length=7)
+	axis.tick_params(axis='x', which='minor', length=4)
 
 	figure.tight_layout()
 
 	plot_filename = f'{channel_name}_{begin_date}_to_{end_date}_{twitch_id}.png'
 	figure.savefig(plot_filename, dpi=200)
 	print(f'- Saved the plot to "{plot_filename}".')
+
+print()
 
 ####################################################################################################
 
@@ -234,25 +271,29 @@ for video_row in video_list:
 		negative_balance_name  = compare['negative_name']
 		controversial_balance_name  = compare['controversial_name']
 
-		def measure_controversy(positive_count: int, negative_count: int) -> float:
+		def measure_controversy_1(positive_count: int, negative_count: int) -> float:
 			return (positive_count + negative_count) / (abs(positive_count - negative_count) + 1)
 
+		def measure_controversy_2(positive_count: int, negative_count: int) -> float:
+			if positive_count == 0 or negative_count == 0:
+				return 0
+			else:
+				return (positive_count + negative_count) ** (min(positive_count, negative_count) / max(positive_count, negative_count))
+
 		video_row['frequency'][positive_balance_name] = [positive_count - negative_count for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
-		video_row['frequency'][negative_balance_name] = [-count for count in video_row['frequency'][positive_balance_name]]
-		video_row['frequency'][controversial_balance_name] = [measure_controversy(positive_count, negative_count) for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
+		video_row['frequency'][negative_balance_name] = video_row['frequency'][positive_balance_name].copy()
+		video_row['frequency'][controversial_balance_name] = [measure_controversy_2(positive_count, negative_count) for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
 
 for compare in compare_types:
 	for kind in ['positive', 'negative', 'controversial']:
 
 		balance_highlight = {}
-		balance_highlight['name'] = compare[kind + '_name']
-		balance_highlight['top'] = compare['top']
-		balance_highlight['is_compare'] = True
 
-		if kind == 'controversial':
-			balance_highlight['words'] = ['See Above']
-		else:
-			balance_highlight['words'] = compare[kind + '_highlight']['words']
+		balance_highlight['name'] = compare[kind + '_name']
+		balance_highlight['top'] = compare[kind + '_top']
+		balance_highlight['words'] = ['both of the above'] if kind == 'controversial' else compare[kind + '_highlight']['words']
+		balance_highlight['is_compare'] = True
+		balance_highlight['is_negative'] = kind == 'negative'
 
 		highlight_types.append(balance_highlight)
 
@@ -263,13 +304,21 @@ for compare in compare_types:
 print(f'Summarizing the top highlights.')
 print()
 
-summary_text = f'Twitch Chat Highlights ({begin_date} to {end_date}):\n\n'
+top_url_delay = CONFIG['highlights']['top_url_delay']
+top_bucket_distance_threshold = CONFIG['highlights']['top_bucket_distance_threshold']
+
+summary_text = f'**Twitch Chat Highlights ({begin_date} to {end_date}):**\n\n&nbsp;\n\n'
 Candidate = namedtuple('Candidate', ['TwitchId', 'Bucket', 'Count'])
 
 for highlight in highlight_types:
+
+	if highlight.get('skip_summary'):
+		continue
+
 	name = highlight['name']
 	top = highlight['top']
 	is_compare = highlight.get('is_compare', False)
+	is_negative = highlight.get('is_negative', False)
 
 	highlight_candidates = []
 	for video_row in video_list:	
@@ -279,23 +328,48 @@ for highlight in highlight_types:
 			if count > message_threshold or is_compare:
 				highlight_candidates.append(Candidate(video_row['TwitchId'], i, count))
 		
-	highlight_candidates = sorted(highlight_candidates, key=lambda x: x.Count, reverse=True)
+	highlight_candidates = sorted(highlight_candidates, key=lambda x: x.Count, reverse=not is_negative)
+	
+	# Remove any candidates that occurred too close to each other, starting with the worst ones.
+	# We don't have to do this step if we only want the best candidate, since that one is never
+	# removed from the list. 
+	if top_bucket_distance_threshold is not None and top > 1:
+		
+		num_removed = 0
+		for worse_idx, worse_candidate in reversed(list(enumerate(highlight_candidates))):
+			for better_candidate in highlight_candidates:
+				
+				# Skip the same candidate (since they're the same) and any other future candidates (since
+				# we already compared them in previous iterations of the outer loop).
+				if worse_candidate is better_candidate:
+					break
+
+				if abs(worse_candidate.Bucket - better_candidate.Bucket) < top_bucket_distance_threshold:
+					# Remember that, since we're iterating backwards in the outer loop, we're removing
+					# this element from the end of the list.
+					del highlight_candidates[worse_idx]
+					num_removed += 1
+					break
+
+		print(f'- Removed {num_removed} highlights that were at most {(top_bucket_distance_threshold - 1) * bucket_length} seconds apart.')
+
 	highlight_candidates = highlight_candidates[:top]
 
-	summary_text += '[BALANCE] ' if is_compare else ''
-	summary_text += f'{name} (' + ', '.join(highlight['words']) + '):\n'
+	word_list_prefix = 'BALANCE: ' if is_compare else ''
+	summary_text += f'**{name}** ({word_list_prefix}' + ', '.join(highlight['words']) + '):\n\n'
 
 	if highlight_candidates:
 
 		for i, candidate in enumerate(highlight_candidates):
 			# VOD timestamp format: 00h00m00s
-			timestamp = timedelta(seconds=candidate.Bucket * bucket_length) - timedelta(seconds=CONFIG['highlights']['top_url_delay'])
+			timestamp = timedelta(seconds=candidate.Bucket * bucket_length) - timedelta(seconds=top_url_delay)
 			timestamp = str(timestamp).replace(':', 'h', 1).replace(':', 'm', 1) + 's'
 			highlight_url = f'https://www.twitch.tv/videos/{candidate.TwitchId}?t={timestamp}'
-			summary_text += f'{i+1}. [{candidate.Count}] {highlight_url}\n'
+			count = candidate.Count if isinstance(candidate.Count, int) else ('%.1f' % candidate.Count)
+			summary_text += f'{i+1}. [{count}] [REPLACEME]({highlight_url})\n\n'
 
 	else:
-		summary_text += 'No highlights found.\n'
+		summary_text += 'No highlights found.'
 
 	summary_text += '\n'
 
