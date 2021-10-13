@@ -273,6 +273,7 @@ for video in video_list:
 		positive_balance_name  = compare['positive_name']
 		negative_balance_name  = compare['negative_name']
 		controversial_balance_name  = compare['controversial_name']
+		total_balance_name  = compare['name']
 
 		def measure_controversy_1(positive_count: int, negative_count: int) -> float:
 			return (positive_count + negative_count) / (abs(positive_count - negative_count) + 1)
@@ -286,6 +287,7 @@ for video in video_list:
 		video['frequency'][positive_balance_name] = [positive_count - negative_count for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
 		video['frequency'][negative_balance_name] = video['frequency'][positive_balance_name].copy()
 		video['frequency'][controversial_balance_name] = [measure_controversy_2(positive_count, negative_count) for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
+		video['frequency'][total_balance_name] = [positive_count + negative_count for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
 
 for compare in compare_types:
 	for kind in ['positive', 'negative', 'controversial']:
@@ -296,6 +298,7 @@ for compare in compare_types:
 		balance_highlight['top'] = compare[kind + '_top']
 		balance_highlight['positive_words'] = compare['positive_highlight']['words']
 		balance_highlight['negative_words'] = compare['negative_highlight']['words']
+		balance_highlight['compare_name'] = compare['name']
 		balance_highlight['compare_kind'] = kind
 
 		highlight_types.append(balance_highlight)
@@ -320,17 +323,21 @@ for highlight in highlight_types:
 
 	name = highlight['name']
 	top = highlight['top']
-	compare_kind = highlight.get('compare_kind', '')
-
+	
+	compare_name = highlight.get('compare_name')
+	compare_kind = highlight.get('compare_kind')
+	
 	highlight_candidates = []
 	for video in video_list:	
 		
 		frequency = video['frequency'][name]
-		for i, count in enumerate(frequency):
+		total = frequency if not compare_name else video['frequency'][compare_name]
+
+		for i, count in enumerate(total):
 			
-			if count > message_threshold or compare_kind:
+			if count > message_threshold:
 				
-				candidate = Candidate(video, i, count)
+				candidate = Candidate(video, i, frequency[i])
 				highlight_candidates.append(candidate)
 		
 	reverse_candidates = (compare_kind != 'negative')
@@ -383,9 +390,7 @@ for highlight in highlight_types:
 			summary_text += f'{i+1}. [{count}] {weekday}: [REPLACEME]({highlight_url})\n\n'
 
 	else:
-		summary_text += 'No highlights found.\n'
-
-	summary_text += '\n'
+		summary_text += f'- No highlights over {message_threshold} messages found.\n\n'
 
 	print(f'- Found {len(highlight_candidates)} "{name}" highlights.')
 
