@@ -144,22 +144,22 @@ for highlight in highlight_types:
 
 	highlight['search_words'] = search_words
 
-for i, video_row in enumerate(video_list):
+for i, video in enumerate(video_list):
 
-	twitch_id = video_row['TwitchId']
+	twitch_id = video['TwitchId']
 	print(f'- Processing video {i+1} of {len(video_list)} ({twitch_id})...')
 
-	hours, minutes, seconds = video_row['Duration'].split(':')
+	video['CreationDateTime'] = datetime.fromisoformat(video['CreationTime'])
+
+	hours, minutes, seconds = video['Duration'].split(':')
 	hours, minutes, seconds = int(hours), int(minutes), int(seconds)
 	duration_in_seconds = hours * 3600 + minutes * 60 + seconds
-	duration = f'{hours}h{minutes:02}m{seconds:02}s'
-
 	num_buckets = ceil(duration_in_seconds / bucket_length)
 	
-	video_row['frequency'] = {}
+	video['frequency'] = {}
 	for highlight in highlight_types:
 		name = highlight['name']
-		video_row['frequency'][name] = [0] * num_buckets
+		video['frequency'][name] = [0] * num_buckets
 
 	try:
 		cursor = db.execute('''
@@ -172,18 +172,18 @@ for i, video_row in enumerate(video_list):
 							INNER JOIN Channel CL ON V.ChannelId = CL.Id
 							WHERE V.Id = :video_id
 							ORDER BY CT.Timestamp;
-							''', {'video_id': video_row['Id']})
+							''', {'video_id': video['Id']})
 
 	except sqlite3.Error as error:
 		print(f'Could not retrieve the chat with the error: {repr(error)}')
 		continue
 
-	for chat_row in cursor:
+	for chat in cursor:
 
-		assert begin_date <= chat_row['Timestamp'] <= end_date, 'The chat message was not sent during the live stream.'
+		assert begin_date <= chat['Timestamp'] <= end_date, 'The chat message was not sent during the live stream.'
 
-		word_list = chat_row['Message'].lower().split()
-		bucket = floor(chat_row['Offset'] / bucket_length)
+		word_list = chat['Message'].lower().split()
+		bucket = floor(chat['Offset'] / bucket_length)
 
 		for highlight in highlight_types:
 			
@@ -201,7 +201,7 @@ for i, video_row in enumerate(video_list):
 						match = search_word.match(word)
 
 					if match:
-						video_row['frequency'][name][bucket] += 1
+						video['frequency'][name][bucket] += 1
 						skip_to_next_highlight = True
 						break					
 
@@ -212,23 +212,23 @@ for i, video_row in enumerate(video_list):
 
 	figure, axis = plt.subplots(figsize=(12, 6))
 
-	title = video_row['Title']
-	creation_time = video_row['CreationTime']
-	creation_datetime = datetime.fromisoformat(creation_time)
-
 	for highlight in highlight_types:
 		name = highlight['name']
-		y_data = video_row['frequency'][name]
+		y_data = video['frequency'][name]
 		x_data = [i*bucket_length for i in range(len(y_data))]
 		axis.plot(x_data, y_data, label=name, color=highlight['color'], linewidth=0.7)
 
 	axis.axhline(y=message_threshold, linestyle='dashed', label=f'Threshold ({message_threshold})', color='k')
 
-	creation_time = creation_datetime.strftime('%Y-%m-%d %H:%M:%S')
+	title = video['Title']
+	creation_time = video['CreationDateTime'].strftime('%Y-%m-%d %H:%M:%S')
+	duration = f'{hours}h{minutes:02}m{seconds:02}s'
 	video_url = f'https://www.twitch.tv/videos/{twitch_id}'
+
 	axis.set(xlabel=f'Time in Buckets of {bucket_length} Seconds', ylabel='Number of Messages', title=f'"{title}" ({creation_time}, {duration})\n{video_url}')
 	axis.legend()
 	
+	# Format the number of seconds as 00h00.
 	def seconds_formatter(num_seconds, position):
 		label, _ = str(timedelta(seconds=num_seconds)).rsplit(':', 1)
 		return label.replace(':', 'h', 1)
@@ -241,9 +241,12 @@ for i, video_row in enumerate(video_list):
 	axis.tick_params(axis='x', which='major', length=7)
 	axis.tick_params(axis='x', which='minor', length=4)
 
+	axis.set_ylim(-1)
+
 	figure.tight_layout()
 
-	plot_filename = f'{channel_name}_{begin_date}_to_{end_date}_{twitch_id}.png'
+	creation_date = video['CreationDateTime'].strftime('%Y-%m-%d')
+	plot_filename = f'{channel_name}_{creation_date}_{twitch_id}.png'
 	figure.savefig(plot_filename, dpi=200)
 	print(f'- Saved the plot to "{plot_filename}".')
 
@@ -258,14 +261,14 @@ for compare in compare_types:
 	compare['positive_highlight'] = next(highlight for highlight in highlight_types if highlight['name'] == compare['positive'])
 	compare['negative_highlight'] = next(highlight for highlight in highlight_types if highlight['name'] == compare['negative'])
 
-for video_row in video_list:
+for video in video_list:
 	for compare in compare_types:
 
 		positive_highlight_name = compare['positive_highlight']['name']
 		negative_highlight_name = compare['negative_highlight']['name']
 
-		positive_frequency = video_row['frequency'][positive_highlight_name]
-		negative_frequency = video_row['frequency'][negative_highlight_name]
+		positive_frequency = video['frequency'][positive_highlight_name]
+		negative_frequency = video['frequency'][negative_highlight_name]
 
 		positive_balance_name  = compare['positive_name']
 		negative_balance_name  = compare['negative_name']
@@ -280,9 +283,9 @@ for video_row in video_list:
 			else:
 				return (positive_count + negative_count) ** (min(positive_count, negative_count) / max(positive_count, negative_count))
 
-		video_row['frequency'][positive_balance_name] = [positive_count - negative_count for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
-		video_row['frequency'][negative_balance_name] = video_row['frequency'][positive_balance_name].copy()
-		video_row['frequency'][controversial_balance_name] = [measure_controversy_2(positive_count, negative_count) for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
+		video['frequency'][positive_balance_name] = [positive_count - negative_count for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
+		video['frequency'][negative_balance_name] = video['frequency'][positive_balance_name].copy()
+		video['frequency'][controversial_balance_name] = [measure_controversy_2(positive_count, negative_count) for positive_count, negative_count in zip(positive_frequency, negative_frequency)]
 
 for compare in compare_types:
 	for kind in ['positive', 'negative', 'controversial']:
@@ -291,9 +294,9 @@ for compare in compare_types:
 
 		balance_highlight['name'] = compare[kind + '_name']
 		balance_highlight['top'] = compare[kind + '_top']
-		balance_highlight['words'] = ['both of the above'] if kind == 'controversial' else compare[kind + '_highlight']['words']
-		balance_highlight['is_compare'] = True
-		balance_highlight['is_negative'] = kind == 'negative'
+		balance_highlight['positive_words'] = compare['positive_highlight']['words']
+		balance_highlight['negative_words'] = compare['negative_highlight']['words']
+		balance_highlight['compare_kind'] = kind
 
 		highlight_types.append(balance_highlight)
 
@@ -308,7 +311,7 @@ top_url_delay = CONFIG['highlights']['top_url_delay']
 top_bucket_distance_threshold = CONFIG['highlights']['top_bucket_distance_threshold']
 
 summary_text = f'**Twitch Chat Highlights ({begin_date} to {end_date}):**\n\n&nbsp;\n\n'
-Candidate = namedtuple('Candidate', ['TwitchId', 'Bucket', 'Count'])
+Candidate = namedtuple('Candidate', ['Video', 'Bucket', 'Count'])
 
 for highlight in highlight_types:
 
@@ -317,18 +320,21 @@ for highlight in highlight_types:
 
 	name = highlight['name']
 	top = highlight['top']
-	is_compare = highlight.get('is_compare', False)
-	is_negative = highlight.get('is_negative', False)
+	compare_kind = highlight.get('compare_kind', '')
 
 	highlight_candidates = []
-	for video_row in video_list:	
+	for video in video_list:	
 		
-		frequency = video_row['frequency'][name]
+		frequency = video['frequency'][name]
 		for i, count in enumerate(frequency):
-			if count > message_threshold or is_compare:
-				highlight_candidates.append(Candidate(video_row['TwitchId'], i, count))
+			
+			if count > message_threshold or compare_kind:
+				
+				candidate = Candidate(video, i, count)
+				highlight_candidates.append(candidate)
 		
-	highlight_candidates = sorted(highlight_candidates, key=lambda x: x.Count, reverse=not is_negative)
+	reverse_candidates = (compare_kind != 'negative')
+	highlight_candidates = sorted(highlight_candidates, key=lambda x: x.Count, reverse=reverse_candidates)
 	
 	# Remove any candidates that occurred too close to each other, starting with the worst ones.
 	# We don't have to do this step if we only want the best candidate, since that one is never
@@ -355,27 +361,37 @@ for highlight in highlight_types:
 
 	highlight_candidates = highlight_candidates[:top]
 
-	word_list_prefix = 'BALANCE: ' if is_compare else ''
-	summary_text += f'**{name}** ({word_list_prefix}' + ', '.join(highlight['words']) + '):\n\n'
+	if compare_kind:
+		summary_text += f'**{name}** ({compare_kind.title()} Balance: ' + ', '.join(highlight['positive_words']) + ' vs ' + ', '.join(highlight['negative_words']) + '):\n\n'
+	else:
+		summary_text += f'**{name}** (' + ', '.join(highlight['words']) + '):\n\n'
 
 	if highlight_candidates:
 
 		for i, candidate in enumerate(highlight_candidates):
+			
+			count = candidate.Count if isinstance(candidate.Count, int) else ('%.1f' % candidate.Count)
+			weekday = candidate.Video['CreationDateTime'].strftime('%a (%d/%m)')
+
 			# VOD timestamp format: 00h00m00s
+			twitch_id = candidate.Video['TwitchId']
 			timestamp = timedelta(seconds=candidate.Bucket * bucket_length) - timedelta(seconds=top_url_delay)
 			timestamp = str(timestamp).replace(':', 'h', 1).replace(':', 'm', 1) + 's'
-			highlight_url = f'https://www.twitch.tv/videos/{candidate.TwitchId}?t={timestamp}'
-			count = candidate.Count if isinstance(candidate.Count, int) else ('%.1f' % candidate.Count)
-			summary_text += f'{i+1}. [{count}] [REPLACEME]({highlight_url})\n\n'
+
+			highlight_url = f'https://www.twitch.tv/videos/{twitch_id}?t={timestamp}'
+
+			summary_text += f'{i+1}. [{count}] {weekday}: [REPLACEME]({highlight_url})\n\n'
 
 	else:
-		summary_text += 'No highlights found.'
+		summary_text += 'No highlights found.\n'
 
 	summary_text += '\n'
 
 	print(f'- Found {len(highlight_candidates)} "{name}" highlights.')
 
 print()
+
+summary_text = summary_text.rstrip()
 
 summary_filename = f'{channel_name}_{begin_date}_to_{end_date}.txt'
 with open(summary_filename, 'w', encoding='utf-8') as file:
