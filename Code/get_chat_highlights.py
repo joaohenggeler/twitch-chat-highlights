@@ -11,6 +11,7 @@ import sys
 from collections import namedtuple
 from datetime import datetime, timedelta
 from math import ceil, floor
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
@@ -53,8 +54,9 @@ except sqlite3.Error as error:
 # Find any VODs in a given time period and assign the correct video IDs to the previously collected
 # chat messages.
 
+# Exclude the last day from the date range since it includes midnight.
 begin_datetime = datetime.strptime(CONFIG['highlights']['begin_date'], '%Y-%m-%d')
-end_datetime = begin_datetime + timedelta(days=CONFIG['highlights']['num_days'])
+end_datetime = begin_datetime + timedelta(days=CONFIG['highlights']['num_days']) - timedelta(seconds=1)
 
 begin_date = begin_datetime.strftime('%Y-%m-%d')
 end_date = end_datetime.strftime('%Y-%m-%d')
@@ -64,44 +66,85 @@ if end_date < begin_date:
 	begin_date, end_date = end_date, begin_date
 
 # Search in the Past Broadcasts section.
-for i, video in enumerate(user.videos(type='archive')):
+api_video_list = []
 
-	if video.created_at < begin_date:
+for video in user.videos(type='archive'):
+
+	# Creation date format: 2000-01-01T00:00:00Z
+	creation_date, _ = video.created_at.split('T', maxsplit=1)
+
+	if creation_date < begin_date:
 		break
-	elif begin_date <= video.created_at <= end_date:
-		
-		# Duration format: 00h00m00s
-		duration = video.duration.replace('h', ':').replace('m', ':').replace('s', '')
-		hours, minutes, seconds = duration.split(':')
-		hours, minutes, seconds = int(hours), int(minutes), int(seconds)
-		duration = f'{hours:02}:{minutes:02}:{seconds:02}'
+	elif begin_date <= creation_date <= end_date:
+		api_video_list.append(video)
 
-		creation_time = video.created_at.replace('Z', '+00:00')
-		creation_time = datetime.fromisoformat(creation_time)
-		end_time = creation_time + timedelta(hours=hours, minutes=minutes, seconds=seconds)
-		
-		creation_time = creation_time.strftime('%Y-%m-%d %H:%M:%S.%f')
-		end_time = end_time.strftime('%Y-%m-%d %H:%M:%S.%f')
+api_video_list = sorted(api_video_list, key=lambda x: x.created_at)
 
-		try:		
-			db.execute(	'''
-						INSERT OR IGNORE INTO Video (ChannelId, TwitchId, Title, CreationTime, Duration)
-						VALUES (:channel_id, :twitch_id, :title, :creation_time, :duration);
-						''',
-						{'channel_id': channel_id, 'twitch_id': video.id, 'title': video.title, 'creation_time': creation_time, 'duration': duration})
+def split_duration(duration: str) -> Tuple[int, int, int, int]:
 
-		except sqlite3.Error as error:
-			print(f'Could not insert the video {video.id} ({video.title}) with the error: {repr(error)}')
+	duration = duration.replace('h', ':').replace('m', ':').replace('s', '')
+	hours, minutes, seconds = duration.split(':')
+	hours, minutes, seconds = int(hours), int(minutes), int(seconds)
+	total_seconds = hours * 3600 + minutes * 60 + seconds
+	
+	return hours, minutes, seconds, total_seconds
 
-		try:
-			db.execute(	'''
-						UPDATE Chat SET VideoId = (SELECT Id FROM Video WHERE TwitchId = :twitch_id)
-						WHERE VideoId IS NULL AND ChannelId = :channel_id AND Timestamp BETWEEN :begin_time AND :end_time;
-						''',
-						{'twitch_id': video.id, 'channel_id': channel_id, 'begin_time': creation_time, 'end_time': end_time})
+for video in api_video_list:
 
-		except sqlite3.Error as error:
-			print(f'Could not update the chat for the video {video.id} ({video.title}) with the error: {repr(error)}')
+	# Duration format: 00h00m00s
+	hours, minutes, seconds, _ = split_duration(video.duration)
+	duration = f'{hours:02}:{minutes:02}:{seconds:02}'
+
+	creation_time = video.created_at.replace('Z', '+00:00')
+	creation_datetime = datetime.fromisoformat(creation_time)
+	end_datetime = creation_datetime + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+	
+	creation_time = creation_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+	end_time = end_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+
+	try:		
+		db.execute(	'''
+					INSERT OR IGNORE INTO Video (ChannelId, TwitchId, Title, CreationTime, Duration)
+					VALUES (:channel_id, :twitch_id, :title, :creation_time, :duration);
+					''',
+					{'channel_id': channel_id, 'twitch_id': video.id, 'title': video.title, 'creation_time': creation_time, 'duration': duration})
+
+	except sqlite3.Error as error:
+		print(f'Could not insert the video {video.id} ({video.title}) with the error: {repr(error)}')
+
+	# Sometimes Twitch errors can temporarily break the video's length and return longer duration (e.g. over 24 hours).
+	# We'll query the duration again since that allows us to fix any wrong durations by editing the corresponding
+	# column in the database. Since the previous query ignores duplicate VODs we won't overwrite our fix.
+	# We'll also make sure to always validate the video ID associated with each chat message (e.g. if the wrong duration
+	# is over 24 hours, then it might bleed into the next VOD).
+
+	try:		
+		cursor = db.execute('SELECT Duration FROM Video WHERE TwitchId = :twitch_id;', {'twitch_id': video.id})
+		row = cursor.fetchone()
+		duration = row['Duration']
+
+		hours, minutes, seconds, _ = split_duration(duration)
+		end_datetime = creation_datetime + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+		end_time = end_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+
+	except sqlite3.Error as error:
+		print(f'Could not retrieve the duration for the video {video.id} ({video.title}) with the error: {repr(error)}')
+
+	try:
+		db.execute(	'''
+					UPDATE Chat SET VideoId = NULL
+					WHERE VideoId = (SELECT Id FROM Video WHERE TwitchId = :twitch_id) AND Timestamp NOT BETWEEN :begin_time AND :end_time;
+					''',
+					{'twitch_id': video.id, 'begin_time': creation_time, 'end_time': end_time})
+
+		db.execute(	'''
+					UPDATE Chat SET VideoId = (SELECT Id FROM Video WHERE TwitchId = :twitch_id)
+					WHERE VideoId IS NULL AND ChannelId = :channel_id AND Timestamp BETWEEN :begin_time AND :end_time;
+					''',
+					{'twitch_id': video.id, 'channel_id': channel_id, 'begin_time': creation_time, 'end_time': end_time})
+
+	except sqlite3.Error as error:
+		print(f'Could not update the chat for the video {video.id} ({video.title}) with the error: {repr(error)}')
 
 ####################################################################################################
 
@@ -110,7 +153,7 @@ for i, video in enumerate(user.videos(type='archive')):
 # highlight category's word frequency.
 
 try:
-	cursor = db.execute('SELECT * FROM Video WHERE ChannelId = :channel_id AND CreationTime BETWEEN :begin_date AND :end_date;',
+	cursor = db.execute('SELECT * FROM Video WHERE ChannelId = :channel_id AND CreationTime BETWEEN :begin_date AND :end_date ORDER BY CreationTime;',
 						{'channel_id': channel_id, 'begin_date': begin_date, 'end_date': end_date})
 	
 	video_list = [dict(row) for row in cursor]
@@ -127,7 +170,7 @@ print()
 
 bucket_length = CONFIG['highlights']['bucket_length']
 message_threshold = CONFIG['highlights']['message_threshold']
-highlight_types = CONFIG['highlights']['types']
+highlight_types = [highlight for highlight in CONFIG['highlights']['types'] if highlight.get('enabled', True)]
 
 for highlight in highlight_types:
 	
@@ -151,9 +194,7 @@ for i, video in enumerate(video_list):
 
 	video['CreationDateTime'] = datetime.fromisoformat(video['CreationTime'])
 
-	hours, minutes, seconds = video['Duration'].split(':')
-	hours, minutes, seconds = int(hours), int(minutes), int(seconds)
-	duration_in_seconds = hours * 3600 + minutes * 60 + seconds
+	hours, minutes, seconds, duration_in_seconds = split_duration(video['Duration'])
 	num_buckets = ceil(duration_in_seconds / bucket_length)
 	
 	video['frequency'] = {}
@@ -235,13 +276,13 @@ for i, video in enumerate(video_list):
 
 	axis.xaxis.set_major_formatter(seconds_formatter)
 	axis.xaxis.set_major_locator(MultipleLocator(30*60))
-	axis.xaxis.set_minor_locator(AutoMinorLocator(4))	
+	axis.xaxis.set_minor_locator(AutoMinorLocator(4))
 	axis.yaxis.set_major_locator(MultipleLocator(5))
 
 	axis.tick_params(axis='x', which='major', length=7)
 	axis.tick_params(axis='x', which='minor', length=4)
 
-	axis.set_ylim(-1)
+	axis.set_ylim(-2)
 
 	figure.tight_layout()
 
@@ -256,7 +297,8 @@ print()
 
 # Compare some of the previous categories against each other and compute the final balance. E.g. the number of +2 vs -2.
 
-compare_types = CONFIG['highlights']['compare']
+compare_types = [compare for compare in CONFIG['highlights']['compare'] if compare.get('enabled', True)]
+
 for compare in compare_types:
 	compare['positive_highlight'] = next(highlight for highlight in highlight_types if highlight['name'] == compare['positive'])
 	compare['negative_highlight'] = next(highlight for highlight in highlight_types if highlight['name'] == compare['negative'])
@@ -313,7 +355,14 @@ print()
 top_url_delay = CONFIG['highlights']['top_url_delay']
 top_bucket_distance_threshold = CONFIG['highlights']['top_bucket_distance_threshold']
 
-summary_text = f'**Twitch Chat Highlights ({begin_date} to {end_date}):**\n\n&nbsp;\n\n'
+summary_text = f'**Twitch Chat Highlights ({begin_date} to {end_date}):**\n\n'
+summary_text += f'Showing the top highlights with more than {message_threshold} messages in a {bucket_length} second window.\n\n'
+
+if CONFIG['highlights']['add_plots_summary_template']:
+	summary_text += '[**Twitch Chat Reactions Over Time**](REPLACEME)\n\n'
+
+summary_text += '&nbsp;\n\n'
+
 Candidate = namedtuple('Candidate', ['Video', 'Bucket', 'Count'])
 
 for highlight in highlight_types:
@@ -328,8 +377,9 @@ for highlight in highlight_types:
 	compare_kind = highlight.get('compare_kind')
 	
 	highlight_candidates = []
-	for video in video_list:	
+	for video in video_list:
 		
+		# Filter buckets under a certain threshold. For highlight comparisons, we use the total number of cases (positive and negative).
 		frequency = video['frequency'][name]
 		total = frequency if not compare_name else video['frequency'][compare_name]
 
@@ -357,19 +407,23 @@ for highlight in highlight_types:
 				if worse_candidate is better_candidate:
 					break
 
-				if abs(worse_candidate.Bucket - better_candidate.Bucket) < top_bucket_distance_threshold:
+				worse_video_id = worse_candidate.Video['Id']
+				better_video_id = better_candidate.Video['Id']
+
+				if worse_video_id == better_video_id and abs(worse_candidate.Bucket - better_candidate.Bucket) < top_bucket_distance_threshold:
 					# Remember that, since we're iterating backwards in the outer loop, we're removing
 					# this element from the end of the list.
 					del highlight_candidates[worse_idx]
 					num_removed += 1
 					break
 
-		print(f'- Removed {num_removed} highlights that were at most {(top_bucket_distance_threshold - 1) * bucket_length} seconds apart.')
+		print(f'- Removed {num_removed} "{name}" highlights that were fewer than {top_bucket_distance_threshold * bucket_length} seconds apart.')
 
 	highlight_candidates = highlight_candidates[:top]
 
 	if compare_kind:
-		summary_text += f'**{name}** ({compare_kind.title()} Balance: ' + ', '.join(highlight['positive_words']) + ' vs ' + ', '.join(highlight['negative_words']) + '):\n\n'
+		compare_title = 'Highest' if compare_kind == 'positive' else ('Lowest' if compare_kind == 'negative' else compare_kind.title())
+		summary_text += f'**{name}** ({compare_title} Balance: ' + ', '.join(highlight['positive_words']) + ' vs ' + ', '.join(highlight['negative_words']) + '):\n\n'
 	else:
 		summary_text += f'**{name}** (' + ', '.join(highlight['words']) + '):\n\n'
 
@@ -390,7 +444,7 @@ for highlight in highlight_types:
 			summary_text += f'{i+1}. [{count}] {weekday}: [REPLACEME]({highlight_url})\n\n'
 
 	else:
-		summary_text += f'- No highlights over {message_threshold} messages found.\n\n'
+		summary_text += f'- No highlights found.\n\n'
 
 	print(f'- Found {len(highlight_candidates)} "{name}" highlights.')
 

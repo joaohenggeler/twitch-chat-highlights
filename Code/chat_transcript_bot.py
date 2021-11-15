@@ -10,8 +10,6 @@ import sqlite3
 
 from twitchio.ext import commands
 
-from keep_alive import keep_alive
-
 ####################################################################################################
 
 with open('config.json') as file:
@@ -113,10 +111,6 @@ class ChatTranscriptBot(commands.Bot):
 			print(f'Failed to close the database with the error: {repr(error)}')
 
 ####################################################################################################
-
-if CONFIG['bot'].get('keep_alive'):
-	print('Running keep-alive')
-	keep_alive()
 
 print('Starting the Chat Transcript Bot')
 
