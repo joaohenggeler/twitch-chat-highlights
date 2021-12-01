@@ -249,8 +249,10 @@ for i, video in enumerate(video_list):
 				if skip_to_next_highlight:
 					break
 
-	# Plot the word frequency.
+	if CONFIG['highlights']['skip_plots']:
+		continue
 
+	# Plot the word frequency.
 	figure, axis = plt.subplots(figsize=(12, 6))
 
 	for highlight in highlight_types:
@@ -355,10 +357,10 @@ print()
 top_url_delay = CONFIG['highlights']['top_url_delay']
 top_bucket_distance_threshold = CONFIG['highlights']['top_bucket_distance_threshold']
 
-summary_text = f'**Twitch Chat Highlights ({begin_date} to {end_date}):**\n\n'
-summary_text += f'Showing the top highlights with more than {message_threshold} messages in a {bucket_length} second window.\n\n'
+summary_text = f'**Twitch Highlights ({begin_date} to {end_date}):**\n\n'
+summary_text += f'Counting the number of chat messages with specific words/emotes in a {bucket_length} second window.\n\n'
 
-if CONFIG['highlights']['add_plots_summary_template']:
+if CONFIG['highlights']['add_plots_url_template']:
 	summary_text += '[**Twitch Chat Reactions Over Time**](REPLACEME)\n\n'
 
 summary_text += '&nbsp;\n\n'
@@ -418,14 +420,19 @@ for highlight in highlight_types:
 					break
 
 		print(f'- Removed {num_removed} "{name}" highlights that were fewer than {top_bucket_distance_threshold * bucket_length} seconds apart.')
+	
+	words_summary = ''
+	if CONFIG['highlights']['show_word_list']:
+		
+		if compare_kind:
+			compare_title = 'Highest' if compare_kind == 'positive' else ('Lowest' if compare_kind == 'negative' else compare_kind.title())
+			words_summary = f' ({compare_title} Balance: ' + ', '.join(highlight['positive_words']) + ' vs ' + ', '.join(highlight['negative_words']) + ')'
+		else:
+			words_summary = ' (' + ', '.join(highlight['words']) + ')'
+	
+	summary_text += f'**{name}**{words_summary}:\n\n'
 
 	highlight_candidates = highlight_candidates[:top]
-
-	if compare_kind:
-		compare_title = 'Highest' if compare_kind == 'positive' else ('Lowest' if compare_kind == 'negative' else compare_kind.title())
-		summary_text += f'**{name}** ({compare_title} Balance: ' + ', '.join(highlight['positive_words']) + ' vs ' + ', '.join(highlight['negative_words']) + '):\n\n'
-	else:
-		summary_text += f'**{name}** (' + ', '.join(highlight['words']) + '):\n\n'
 
 	if highlight_candidates:
 

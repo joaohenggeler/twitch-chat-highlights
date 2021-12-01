@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
 """
-	Joins a given number of Twitch channels and saves any public chat messages to disk.
+	Runs a bot that joins a given number of Twitch channels and saves any public chat messages to disk.
 """
 
+import asyncio
 import json
+import logging
 import os
 import sqlite3
+from datetime import datetime, timezone
 
 from twitchio.ext import commands
 
@@ -15,18 +18,25 @@ from twitchio.ext import commands
 with open('config.json') as file:
 	CONFIG = json.load(file)
 
-if 'access_token' not in CONFIG:
-	
-	if 'access_token' in os.environ:
-		CONFIG['access_token'] = os.environ['access_token']
-	else:
-		CONFIG['access_token'] = input('Access Token: ')
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+current_timestamp = datetime.now(tz=timezone.utc).strftime('%Y%m%d%H%M%S')
+log_file_handler = logging.FileHandler(f'{current_timestamp}.log', 'w', 'utf-8')
+log_stream_handler = logging.StreamHandler()
+
+log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+log_file_handler.setFormatter(log_formatter)
+log_stream_handler.setFormatter(log_formatter)
+
+log.addHandler(log_file_handler)
+log.addHandler(log_stream_handler)
 
 class ChatTranscriptBot(commands.Bot):
 
 	def __init__(self):
 		super().__init__(token=CONFIG['access_token'], prefix='!', initial_channels=CONFIG['bot']['channels'])
-		
+
 		try:
 			self.db = sqlite3.connect(CONFIG['database_filename'])
 			self.db.isolation_level = None
@@ -67,54 +77,70 @@ class ChatTranscriptBot(commands.Bot):
 							);
 							''')
 
-			print(f'Connected to the database: ' + CONFIG['database_filename'])
+			log.info(f'Connected to the database: ' + CONFIG['database_filename'])
 		except sqlite3.Error as error:
-			print(f'Failed to create or open the database with the error: {repr(error)}')
+			log.error(f'Failed to create or open the database with the error: {repr(error)}')
+
+		self.message_tally = {}
 
 		try:
 			for channel in CONFIG['bot']['channels']:
 				self.db.execute('INSERT OR IGNORE INTO Channel (Name) VALUES (:channel);', {'channel': channel.lower()})
+				self.message_tally[channel] = {'success': 0, 'failure': 0, 'total': 0}
 		except sqlite3.Error as error:
-			print(f'Failed to insert the channel names with the error: {repr(error)}')
+			log.error(f'Failed to insert the channel names with the error: {repr(error)}')
 
 	async def event_ready(self):
-		print(f'Logged in as "{self.nick}" to the channels: ' + str(CONFIG['bot']['channels']))
+		log.info(f'Logged in as "{self.nick}" to the channels: ' + str(CONFIG['bot']['channels']))
 
 	async def event_token_expired(self):
-		print('Attempting to renew the expired access token')
+		log.info('Attempting to renew the expired access token')
 		return None
 
 	async def event_error(self, error):
-		print(f'Error: {repr(error)}')
+		log.error(f'Bot error: {repr(error)}')
 
 	async def event_message(self, message):		
 		if message.echo:
 			return
 		
 		timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')
-		params = {'timestamp': timestamp, 'message': message.content, 'channel_name': message.channel.name}
+		channel = message.channel.name.lower()
+		params = {'timestamp': timestamp, 'message': message.content, 'channel': channel}
 
-		try:
-			self.db.execute('''
-							INSERT INTO Chat (Timestamp, Message, ChannelId)
-							VALUES (:timestamp, :message, (SELECT CL.Id FROM Channel CL WHERE CL.Name = :channel_name));
-							''', params)
-		except sqlite3.Error as error:
-			print(f'Failed to insert the message ({message.channel.name}, {timestamp}, "{message.content}") with the error: {repr(error)}')
+		for i in range(CONFIG['bot']['max_write_retries']):
+			
+			try:
+				self.db.execute('''
+								INSERT INTO Chat (Timestamp, Message, ChannelId)
+								VALUES (:timestamp, :message, (SELECT CL.Id FROM Channel CL WHERE CL.Name = :channel));
+								''', params)
+			except sqlite3.Error as error:
+				log.warning(f'Attempting to reinsert the message ({channel}, {timestamp}, "{message.content}") that failed with the error: {repr(error)}')
+				await asyncio.sleep(CONFIG['bot']['write_retry_wait_time'])
+			finally:
+				self.message_tally[channel]['success'] += 1
+				break
+
+		else:
+			log.error(f'Failed to insert the message ({channel}, {timestamp}, "{message.content}")')
+			self.message_tally[channel]['failure'] += 1
+
+		self.message_tally[channel]['total'] += 1
 
 	async def close(self):
-		print(f'Logging off')
-
 		try:
 			self.db.close()
 		except sqlite3.Error as error:
-			print(f'Failed to close the database with the error: {repr(error)}')
+			log.warning(f'Failed to close the database with the error: {repr(error)}')
+
+		log.info(f'Logged off "{self.nick}" from the channels with the following results: {self.message_tally}')
 
 ####################################################################################################
 
-print('Starting the Chat Transcript Bot')
+log.info('Starting the Chat Transcript Bot')
 
 bot = ChatTranscriptBot()
 bot.run()
 
-print('Stopped the Chat Transcript Bot')
+log.info('Stopped the Chat Transcript Bot')
