@@ -1,0 +1,116 @@
+{
+	"common":
+	{
+		"client_id": "<Client Id>",
+		"access_token": "<Access Token>",
+		"database_filename": "chat.db"
+	},
+
+	"bot":
+	{
+		"channels": ["<Username 1>", "<Username 2>"],
+		"max_write_retries": 5,
+		"write_retry_wait_time": 1
+	},
+
+	"highlights":
+	{
+		"channel_name": "<Username>",
+		"begin_date": "<YYYY-MM-DD>",
+		"num_days": 7,
+		
+		"bucket_length": 20,
+		"message_threshold": 15,
+		"top_bucket_distance_threshold": 3,
+		"top_url_delay": 15,
+		
+		"show_plots": false,
+		"add_plots_url_template": false,
+		"show_word_list": false,
+
+		"types":
+		[
+			{
+				"name": "Good Bit",
+				"words": ["+2"],
+				"top": 0,
+				"color": "#32cd32",
+				"skip_summary": true
+			},
+
+			{
+				"name": "Bad Bit",
+				"words": ["-2"],
+				"top": 0,
+				"color": "#dc143c",
+				"skip_summary": true
+			},
+			
+			{
+				"name": "Funny",
+				"words": ["LUL", "LULW", "OMEGALUL", "KEKW", "regex:LMF?AO+", "regex:LO+L"],
+				"top": 10,
+				"color": "#ff7f50"
+			},
+
+			{
+				"name": "Pog",
+				"words": ["POG", "POGGERS", "PogChamp"],
+				"top": 1,
+				"color": "#00bfff"
+			},
+			
+			{
+				"name": "Horny",
+				"words": ["BOP", "Kreygasm"],
+				"top": 1,
+				"color": "#ff69b4"
+			},
+			
+			{
+				"name": "Scary",
+				"words": ["monkaS", "monkaW"],
+				"top": 1,
+				"color": "#9400d3"
+			},
+			
+			{
+				"name": "Sad",
+				"words": ["PepeHands", "FeelsBadMan", "Sadge", ":("],
+				"top": 1,
+				"color": "#0000cd"
+			},
+			
+			{
+				"name": "Weird",
+				"words": ["WutFace", "DansGame", "WeirdChamp", "yikes", "regex:WTF+", "regex:bruh+", "regex:\\?+"],
+				"top": 1,
+				"color": "#000000"
+			},
+
+			{
+				"name": "Jam",
+				"words": ["ratJAM", "SourPls"],
+				"top": 1,
+				"color": "#ffdf00"
+			}
+		],
+
+		"comparisons":
+		[
+			{
+				"name": "+2 vs -2",
+				"positive_type": "Good Bit",
+				"negative_type": "Bad Bit",
+
+				"positive_name": "Best Bit",
+				"negative_name": "Worst Bit",
+				"controversial_name": "Controversial Bit",
+				
+				"positive_top": 5,
+				"negative_top": 1,
+				"controversial_top": 1
+			}
+		]
+	}
+}

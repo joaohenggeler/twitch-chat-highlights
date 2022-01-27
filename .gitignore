@@ -1,6 +1,8 @@
 *.pyc
-*.db*
-*.json
-*.png
-*.txt
-*.7z
+
+Archive
+
+Source/*
+!Source/*.py
+!Source/config_template.json
+!Source/requirements.txt
