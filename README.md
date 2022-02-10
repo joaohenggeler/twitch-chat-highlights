@@ -1,8 +1,16 @@
 # Twitch Chat Highlights
 
-A collection of Python scripts used to find highlights in Twitch streams according to specific words and emotes posted in chat. For example, finding the top 10 funniest moments by counting the occurrence of the LUL emote in 20-second windows.
+A collection of Python scripts used to find highlights in Twitch streams according to specific words and emotes posted in chat. For example, finding the top 10 funniest moments by counting the occurrence of the LUL emote in a 20-second window.
 
-<!-- Image -->
+![An example of a generated plot showing chat's reactions during a live stream.](Images/plot_example.png)
+
+## Dependencies
+
+Before running the scripts, the following packages must be installed: [Twitch Python](https://github.com/PetterKraabol/Twitch-Python) (to interface with the Twitch API), [TwitchIO](https://github.com/TwitchIO/TwitchIO) (to run the bot), [Matplotlib](https://matplotlib.org/) (to generate the plots). You can do this by running the following command with the requirements file in [the source directory](Source).
+
+```
+pip install -r requirements.txt
+```
 
 ## Scripts
 
@@ -16,21 +24,13 @@ This section will document every script inside [the source directory](Source).
 
 * `common.py`: a module that defines any general purpose functions used by all scripts, including loading configuration files, connecting to the database, and handling Twitch's timestamp formats.
 
-## Dependencies
-
-Before running the scripts, the following packages must be installed: [Twitch Python](https://github.com/PetterKraabol/Twitch-Python) (to interface with the Twitch API), [TwitchIO](https://github.com/TwitchIO/TwitchIO) (to run the bot), [Matplotlib](https://matplotlib.org/) (to generate the plots). You can do this by running the following command with the requirements file in [the source directory](Source).
-
-```
-pip install -r requirements.txt
-```
-
 ## How To Use
 
 This section will guide you through the steps necessary in order to generate the final highlight summaries and plots.
 
-1. Obtain a Client ID and Access Token by either following the steps in [the Twitch Developer page](https://dev.twitch.tv/docs/authentication) or in [the Twitch Token Generator](https://twitchtokengenerator.com/). The only scope required to read chat messages is `chat:read`.
+1. Obtain a Client ID and Access Token by either following the steps in [the Twitch Developer page](https://dev.twitch.tv/docs/authentication) or in [the Twitch Token Generator](https://twitchtokengenerator.com/). If you want to run a bot with `chat_transcript_bot.py`, you should create a new Twitch account for it. The only scope required to read chat messages during a live stream is `chat:read`. Even if you don't use a bot to collect the chat messages, the Client ID and Access Token are still required for the other scripts.
 
-2. Make a copy of the [`config_template.json`](Source/config_template.json) file and change the required configurations. Most of them can be left to their default values.
+2. Make a copy of the [`config_template.json`](Source/config_template.json) file, rename it to `config.json`, and change the required configurations. Most of them can be left to their default values.
 
 	* `common`: a dictionary of configurations that apply to all scripts.
 
@@ -48,15 +48,15 @@ This section will guide you through the steps necessary in order to generate the
 
 		* `channel_name`: the channel whose VODs will be searched for highlights. **Must be changed.**
 		* `begin_date`: the starting date for this search in the format `YYYY-MM-DD`. **Must be changed.**
-		* `num_days`: how many days to consider during this search. Together with the previous configuration, this defines the range of days to search for VODs.
+		* `num_days`: how many days to consider during this search. Together with the previous configuration, this defines the range of days to search for VODs. For example, setting `begin_date` to `2022-01-01` and `num_days` to `31` specifies every VOD during the month of January.
 		* `video_type`: the type of VOD to search for. This may be `archive` (Past Broadcasts),  `highlight` (Highlights),  `upload` (Uploads), or `all` (all of the previous). `archive` should be used in the vast majority of cases, but it could be changed to `highlight` if the VODs have been deleted from Past Broadcasts.
 
-		* `bucket_length`: the size of each window or bucket in seconds. Words and emotes (i.e. chat's reactions) are counted per bucket.
-		* `message_threshold`: the minimum number of chat reactions in a category that must exist in a bucket to consider it a highlight. Used to remove any moments that do not have a significant number of chat reactions.
-		* `top_bucket_distance_threshold`: the minimum distance in buckets that is required for similar but lower ranked highlights to be considered. Used to remove any highlights that happened too close to each other while also prioritizing the best ranked ones and only discarding the ones with fewer reactions. The threshold value in seconds is this multiplied by the bucket length.
+		* `bucket_length`: the size of each window or bucket in seconds. The number of chat messages with specific words and emotes are counted per bucket.
+		* `message_threshold`: the minimum number of chat messages in a category that must exist in a bucket to consider it a highlight. Used to remove any moments that do not have a significant number of chat reactions.
+		* `top_bucket_distance_threshold`: the minimum distance in buckets that is required for similar but lower ranked highlights to be considered. Used to remove any highlights that happened too close to each other while also prioritizing the best ranked ones and only discarding the ones with fewer messages. The threshold value in seconds is this multiplied by the bucket length.
 		* `top_url_delay`: how many seconds to subtract from the VOD timestamp in the highlighted moment. Used to give context to each highlight.
 
-		* `show_plots`: whether or not to plot the number of words and emotes in each category over each VOD's duration. Plots are saved as images.
+		* `show_plots`: whether or not to plot the number of messages in each category during the live stream. Plots are saved as images.
 		* `add_plots_url_template`: whether or not to add a short template that could be replaced with a link to these images.
 		* `show_word_list`: whether or not to add the list of words and emotes in each category to the highlight summary.
 
@@ -82,8 +82,8 @@ This section will guide you through the steps necessary in order to generate the
 
 3. Insert the chat messages for the desired VODs in the database defined by the `database_filename` configuration. You can do this one of two ways:
 
-* Using a third-party to tool like [Twitch Chat Downloader](https://github.com/PetterKraabol/Twitch-Chat-Downloader) or [RechatTool](https://github.com/jdpurcell/RechatTool) to download the JSON chat log for each VOD using the old v5 Twitch API. These can then be imported using `import_chat_json_into_database.py`. Note that this method will stop working on February 28th, 2022, since [Twitch is shutting down the v5 API](https://blog.twitch.tv/en/2021/07/15/legacy-twitch-api-v5-shutdown-details-and-timeline/).
+	* Using a third-party to tool like [Twitch Chat Downloader](https://github.com/PetterKraabol/Twitch-Chat-Downloader) or [RechatTool](https://github.com/jdpurcell/RechatTool) to download the JSON chat log for each VOD using the old v5 Twitch API. These can then be imported using `import_chat_json_into_database.py`. Note that this method will stop working on February 28th, 2022, since [Twitch is shutting down the v5 API](https://blog.twitch.tv/en/2021/07/15/legacy-twitch-api-v5-shutdown-details-and-timeline/). You can still import chat logs from older VODs if you downloaded them at a previous date.
 
-* Running a bot with `chat_transcript_bot.py` that saves any public chat messages posted during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
+	* Running a bot with `chat_transcript_bot.py` that saves any public chat messages posted during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
-4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images with chat's reaction over each VOD's duration.
+4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that show chat's reactions during the live stream.

@@ -378,9 +378,9 @@ for i, video in enumerate(video_list):
 	for highlight in config.types:
 		y_data = video.Frequency[highlight.name]
 		x_data = [i * config.bucket_length for i in range(len(y_data))]
-		axis.plot(x_data, y_data, label= highlight.name, color=highlight.color, linewidth=0.7)
+		axis.plot(x_data, y_data, label=highlight.name, color=highlight.color, linewidth=0.7)
 
-	axis.axhline(y=config.message_threshold, linestyle='dashed', label=f'Threshold ({config.message_threshold})', color='k')
+	axis.axhline(y=config.message_threshold, label=f'Threshold ({config.message_threshold})', color='k', linestyle='dashed')
 
 	axis.set(xlabel=f'Time in Buckets of {config.bucket_length} Seconds', ylabel='Number of Messages', title=f'"{video.Title}" ({video.CreationTime}, {video.Duration})\n{video.Url}')
 	axis.legend()
