@@ -18,7 +18,7 @@ This section will document every script inside [the source directory](Source).
 
 * `import_chat_json_into_database.py`: a script that imports one or more JSON files with a Twitch VOD's chat log into the database. Note that there's no protection for inserting the same data twice.
 
-* `chat_transcript_bot.py`: a script that runs a bot that joins a given number of Twitch channels and saves any public chat messages posted during a live stream to the database. **Be sure to get a streamer's permission before running this bot on their channel.**
+* `chat_transcript_bot.py`: a script that runs a bot that joins a given number of Twitch channels and saves any public chat messages sent during a live stream to the database. **Be sure to get a streamer's permission before running this bot on their channel.**
 
 * `get_chat_highlights.py`: a script that processes any saved chat messages in the database between two dates, generates a summary text file with the top highlights in different categories, and optionally creates images that plot chat's reactions during each live stream.
 
@@ -56,7 +56,7 @@ This section will guide you through the steps necessary in order to generate the
 		* `top_bucket_distance_threshold`: the minimum distance in buckets that is required for similar but lower ranked highlights to be considered. Used to remove any highlights that occurred too close to each other, while also prioritizing the best ranked ones and only discarding the ones with fewer messages. Can be converted into seconds by multiplying it by the bucket length.
 		* `top_url_delay`: how many seconds to subtract from the VOD timestamp in the highlighted moment. Used to give context to each highlight.
 
-		* `show_plots`: whether or not to plot the number of messages in each category during the live stream. Plots are saved as images.
+		* `show_plots`: whether or not to plot the number of messages in each category sent during the live streams. Plots are saved as images.
 		* `add_plots_url_template`: whether or not to add a short template to the highlight summary that could be replaced with a link to these images.
 		* `show_word_list`: whether or not to add the list of words and emotes in each category to the highlight summary.
 
@@ -84,6 +84,6 @@ This section will guide you through the steps necessary in order to generate the
 
 	* Using a third-party to tool like [Twitch Chat Downloader](https://github.com/PetterKraabol/Twitch-Chat-Downloader) or [RechatTool](https://github.com/jdpurcell/RechatTool) to download the JSON chat log for each VOD using the old v5 Twitch API. These can then be imported using `import_chat_json_into_database.py`. Note that this method will stop working on February 28th, 2022, since [Twitch is shutting down the v5 API](https://blog.twitch.tv/en/2021/07/15/legacy-twitch-api-v5-shutdown-details-and-timeline/). You can still import chat logs from older VODs if you downloaded them at a previous date.
 
-	* Running a bot with `chat_transcript_bot.py` that saves any public chat messages posted during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
+	* Running a bot with `chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
-4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during the live stream.
+4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream.
