@@ -86,4 +86,4 @@ This section will guide you through the steps necessary in order to generate the
 
 	* Running a bot with `chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
-4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream.
+4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title or with a link to the images (if `add_plots_url_template` was set to true).
