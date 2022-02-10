@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """
-	Processes any saved chat messages in the database between two dates, generates a summary of the top highlights in
-	different categories, and optionally plots the chat's reactions over time.
+	Processes any saved chat messages in the database between two dates, generates a summary text file with the top highlights in
+	different categories, and optionally creates images that plot chat's reactions during each live stream.
 
 	Use the JSON configuration file next to this script to choose the Twitch channel, dates, categories, and other options.
 
