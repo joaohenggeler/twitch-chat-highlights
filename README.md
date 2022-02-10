@@ -2,7 +2,7 @@
 
 A collection of Python scripts used to find highlights in Twitch streams according to specific words and emotes posted in chat. For example, finding the top 10 funniest moments by counting the occurrence of the LUL emote in a 20-second window.
 
-![An example of a generated plot showing chat's reactions during a live stream.](Images/plot_example.png)
+![An example of a generated plot showing chat's reactions during a live stream.](Samples/northernlion_2022-01-26_1276692700.png)
 
 ## Dependencies
 
@@ -86,4 +86,4 @@ This section will guide you through the steps necessary in order to generate the
 
 	* Running a bot with `chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
-4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title or with a link to the images (if `add_plots_url_template` was set to true). [A sample summary file can be found here.](Samples/northernlion_2022-01-01_to_2022-01-31.txt)
+4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title or with a link to the plot images (if `add_plots_url_template` was set to true). [A sample summary text file and plot image can be found in this directory.](Samples)
