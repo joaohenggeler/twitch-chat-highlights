@@ -1,6 +1,6 @@
 *.pyc
 
-Archive
+Archives
 
 Source/*
 !Source/*.py

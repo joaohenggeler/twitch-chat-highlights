@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-	This module defines any general purpose functionalities used by all scripts, including loading configuration files,
+	A module that defines any general purpose functions used by all scripts, including loading configuration files,
 	connecting to the database, and handling Twitch's timestamp formats.
 """
 
@@ -54,6 +54,7 @@ class CommonConfig():
 						);
 						''')
 
+		# VideoId can be NULL when we're storing messages from a live stream, meaning there's no VOD yet.
 		db.execute('''
 						CREATE TABLE IF NOT EXISTS 'Chat'
 						(

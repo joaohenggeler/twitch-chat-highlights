@@ -18,6 +18,7 @@
 		"channel_name": "<Username>",
 		"begin_date": "<YYYY-MM-DD>",
 		"num_days": 7,
+		"video_type": "archive",
 		
 		"bucket_length": 20,
 		"message_threshold": 15,

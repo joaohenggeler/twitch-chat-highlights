@@ -99,6 +99,7 @@ class HighlightsConfig(CommonConfig):
 	channel_name: str
 	begin_date: str
 	num_days: int
+	video_type: str
 
 	bucket_length: int
 	message_threshold: int
@@ -194,8 +195,8 @@ except sqlite3.Error as error:
 
 helix_video_list = []
 
-# Search in the Past Broadcasts section.
-for video in helix_user.videos(type='archive'):
+# Search the videos section (past broadcasts, highlights, uploads, or all).
+for video in helix_user.videos(type=config.video_type):
 
 	# Creation date format: 2000-01-01T00:00:00Z
 	creation_date, _ = video.created_at.split('T', 1)
@@ -315,7 +316,7 @@ if not video_list:
 	print(f'Could not find any videos in the "{config.channel_name}" channel between {config.vods_begin_date} and {config.vods_end_date}.')
 	sys.exit(1)
 
-print(f'Found {len(video_list)} videos in the "{config.channel_name}" channel between {config.vods_begin_date} and {config.vods_end_date}.')
+print(f'Found {len(video_list)} videos in the "{config.video_type}" section of the "{config.channel_name}" channel between {config.vods_begin_date} and {config.vods_end_date}.')
 print()
 
 for i, video in enumerate(video_list):
@@ -486,8 +487,7 @@ for highlight in config.types:
 
 		for i, count in enumerate(total):
 			
-			if count > config.message_threshold:
-				
+			if count >= config.message_threshold:
 				candidate = Candidate(video, i, frequency[i])
 				highlight_candidates.append(candidate)
 		

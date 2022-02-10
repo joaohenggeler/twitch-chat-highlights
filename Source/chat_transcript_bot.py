@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-	Runs a bot that joins a given number of Twitch channels and saves any public chat messages to disk.
+	Runs a bot that joins a given number of Twitch channels and saves any public chat messages posted during a live stream to the database.
 """
 
 import asyncio
