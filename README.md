@@ -18,9 +18,9 @@ This section will document every script inside [the source directory](Source).
 
 * `import_chat_json_into_database.py`: a script that imports one or more JSON files with a Twitch VOD's chat log into the database. Note that there's no protection for inserting the same data twice.
 
-* `chat_transcript_bot.py`: a script that runs a bot that joins a given number of Twitch channels and saves any public chat messages sent during a live stream to the database. **Be sure to get a streamer's permission before running this bot on their channel.**
+* `run_chat_transcript_bot.py`: a script that runs a bot that joins a given number of Twitch channels and saves any public chat messages sent during a live stream to the database. **Be sure to get a streamer's permission before running this bot on their channel.**
 
-* `get_chat_highlights.py`: a script that processes any saved chat messages in the database between two dates, generates a summary text file with the top highlights in different categories, and optionally creates images that plot chat's reactions during each live stream.
+* `find_chat_highlights.py`: a script that processes any saved chat messages in the database between two dates, generates a summary text file with the top highlights in different categories, and optionally creates images that plot chat's reactions during each live stream.
 
 * `common.py`: a module that defines any general purpose functions used by all scripts, including loading configuration files, connecting to the database, and handling Twitch's timestamp formats.
 
@@ -28,7 +28,7 @@ This section will document every script inside [the source directory](Source).
 
 This section will guide you through the steps necessary in order to generate the final highlight summaries and plots.
 
-1. Obtain a Client ID and Access Token by either following the steps in [the Twitch Developer page](https://dev.twitch.tv/docs/authentication) or in [the Twitch Token Generator](https://twitchtokengenerator.com/). If you want to run a bot with `chat_transcript_bot.py`, you should create a new Twitch account for it. The only scope required to read chat messages during a live stream is `chat:read`. Even if you don't use a bot to collect the chat messages, the Client ID and Access Token are still required for the other scripts.
+1. Obtain a Client ID and Access Token by either following the steps in [the Twitch Developer page](https://dev.twitch.tv/docs/authentication) or in [the Twitch Token Generator](https://twitchtokengenerator.com/). If you want to run a bot with `run_chat_transcript_bot.py`, you should create a new Twitch account for it. The only scope required to read chat messages during a live stream is `chat:read`. Even if you don't use a bot to collect the chat messages, the Client ID and Access Token are still required for the other scripts.
 
 2. Make a copy of the [`config_template.json`](Source/config_template.json) file, rename it to `config.json`, and change the required configurations. Most of them can be left with their default values.
 
@@ -38,13 +38,13 @@ This section will guide you through the steps necessary in order to generate the
 		* `access_token`: the Access Token obtained in the previous step. **Must be changed.**
 		* `database_filename`: the name of the database that is created and used by the scripts.
 
-	* `bot`: a dictionary of configurations that only apply to `chat_transcript_bot.py`.
+	* `bot`: a dictionary of configurations that only apply to `run_chat_transcript_bot.py`.
 
 		* `channels`: a list of one or more channels where the bot should join and save messages from.
 		* `max_write_retries`: the maximum number of retry attempts to perform if a chat message couldn't be inserted into the database.
 		* `write_retry_wait_time`: how many seconds to wait between retries.
 
-	* `highlights`: a dictionary of configurations that only apply to `get_chat_highlights.py`.
+	* `highlights`: a dictionary of configurations that only apply to `find_chat_highlights.py`.
 
 		* `channel_name`: the channel whose VODs will be searched for highlights. **Must be changed.**
 		* `begin_date`: the starting date for this search in the format `YYYY-MM-DD`. **Must be changed.**
@@ -84,6 +84,6 @@ This section will guide you through the steps necessary in order to generate the
 
 	* Using a third-party to tool like [Twitch Chat Downloader](https://github.com/PetterKraabol/Twitch-Chat-Downloader) or [RechatTool](https://github.com/jdpurcell/RechatTool) to download the JSON chat log for each VOD using the old v5 Twitch API. These can then be imported using `import_chat_json_into_database.py`. Note that this method will stop working on February 28th, 2022, since [Twitch is shutting down the v5 API](https://blog.twitch.tv/en/2021/07/15/legacy-twitch-api-v5-shutdown-details-and-timeline/). You can still import chat logs from older VODs if you downloaded them at a previous date.
 
-	* Running a bot with `chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
+	* Running a bot with `run_chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
-4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `get_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title or with a link to the plot images (if `add_plots_url_template` was set to true). [A sample summary text file and plot image can be found in this directory.](Samples)
+4. Adjust the configurations `channel_name`, `begin_date` and `num_days` depending on your use case. Then, run `find_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title or with a link to the plot images (if `add_plots_url_template` was set to true). [A sample summary text file and plot image can be found in this directory.](Samples)
