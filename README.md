@@ -14,7 +14,7 @@ pip install -r requirements.txt
 
 ## Scripts
 
-This section will document every script inside [the source directory](Source).
+This section documents every script inside [the source directory](Source).
 
 * `import_chat_json_into_database.py`: a script that imports one or more JSON files with a Twitch VOD's chat log into the database. Note that there's no protection for inserting the same data twice.
 
@@ -26,7 +26,7 @@ This section will document every script inside [the source directory](Source).
 
 ## How To Use
 
-This section will guide you through the steps necessary in order to generate the final highlight summaries and plots.
+This section goes through every necessary step in order to generate the highlight summaries and plots.
 
 1. Obtain a Client ID and Access Token by either following the steps in [the Twitch Developer page](https://dev.twitch.tv/docs/authentication) or in [the Twitch Token Generator](https://twitchtokengenerator.com/). If you want to run a bot with `run_chat_transcript_bot.py`, you should create a new Twitch account for it. The only scope required to read chat messages during a live stream is `chat:read`. Even if you don't use a bot to collect the chat messages, the Client ID and Access Token are still required for the other scripts.
 
@@ -65,6 +65,7 @@ This section will guide you through the steps necessary in order to generate the
 			* `words`: a list of words and emotes to consider for each category. These may be normal strings or regular expressions that match patterns (if they start with the prefix `regex:`). This should be adapted for each Twitch channel since different communities use different emotes. Note that string comparisons are always case insensitive.
 			* `top`: how many category highlights to show in the summary, starting with the best ranked ones.
 			* `color`: the hexadecimal color of the category's line in the generated plots. Unused if `show_plots` is false.
+			* `skip_plots`: whether or not to show the category in the generated plots. If omitted, this configuration defaults to false.
 			* `skip_summary`: whether or not to show the results for the category in the summary. Used to skip categories that are used by comparisons in order to avoid redundant results. If omitted, this configuration defaults to false.
 
 		* `comparisons`: a list of dictionaries that each define a comparison between two highlight categories. Each comparison generates three new categories: positive, negative, and controversial. Used to see how divided chat is between the two categories.

@@ -36,6 +36,7 @@ class HighlightType():
 	words: List[str]
 	top: int
 	color: str
+	skip_plot: bool
 	skip_summary: bool
 
 	# Determined at runtime.
@@ -49,6 +50,7 @@ class HighlightType():
 
 	def __init__(self, **kwargs):
 		self.words = []
+		self.skip_plot = False
 		self.skip_summary = False
 		self.__dict__.update(kwargs)
 	
@@ -376,6 +378,9 @@ for i, video in enumerate(video_list):
 	figure, axis = plt.subplots(figsize=(12, 6))
 
 	for highlight in config.types:
+		if highlight.skip_plot:
+			continue
+
 		y_data = video.Frequency[highlight.name]
 		x_data = [i * config.bucket_length for i in range(len(y_data))]
 		axis.plot(x_data, y_data, label=highlight.name, color=highlight.color, linewidth=0.7)
@@ -473,7 +478,6 @@ Candidate = namedtuple('Candidate', ['Video', 'Bucket', 'Count'])
 for highlight in config.types:
 
 	if highlight.skip_summary:
-		print(f'- Skipped the "{highlight.name}" highlights at the user\'s request.')
 		continue
 	
 	is_balance = isinstance(highlight, HighlightBalanceType)
