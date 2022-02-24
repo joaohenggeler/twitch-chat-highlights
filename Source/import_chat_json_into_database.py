@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-	Imports one or more JSON files with a Twitch VOD's chat log into the database. Note that there's no protection for inserting the same data twice.
+	Imports one or more JSON files with a Twitch VOD's chat log into the database.
 """
 
 import json
@@ -10,8 +10,6 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from glob import glob
-
-from twitch import Helix # type: ignore
 
 from common import CommonConfig, split_twitch_duration, convert_twitch_timestamp_to_datetime
 
@@ -23,7 +21,6 @@ parser.add_argument('json_encoding', nargs='?', default='utf-8', help='The chara
 args = parser.parse_args()
 
 config = CommonConfig()
-helix = Helix(config.client_id, bearer_token=config.access_token, use_cache=True)
 
 try:
 	db = config.connect_to_database()
@@ -38,34 +35,34 @@ file_path_list = glob(args.json_search_path)
 for i, file_path in enumerate(file_path_list):
 
 	with open(file_path, encoding=args.json_encoding) as file:
-		chat_list = json.load(file)
+		chat_log = json.load(file)
 
-	if not chat_list:
-		print(f'Skipped the empty chat log from "{file_path}".')
+	if not isinstance(chat_log, dict):
+		print(f'Skipped the chat log in "{file_path}" since it is not a dictionary.')
 		continue
 
-	content_type = chat_list[0]['content_type']
-	if content_type != 'video':
-		print(f'Skipped the chat log from "{file_path}" with the unhandled content type "{content_type}".')
+	if 'video' not in chat_log:
+		print(f'Skipped the chat log in "{file_path}" since it is missing the VOD metadata.')
 		continue
 
-	video_twitch_id = chat_list[0]['content_id']
-
-	try:
-		video = helix.video(video_twitch_id)
-	except Exception as error:
-		print(f'Could not retrieve the video {video_twitch_id} for the chat log from "{file_path}" with the error: {repr(error)}')
+	if 'comments' not in chat_log:
+		print(f'Skipped the chat log in "{file_path}" since it is missing the VOD chat messages.')
 		continue
 
-	channel_name = video.user_name.lower()
+	video = chat_log['video']
+	chat_list = chat_log['comments']
 
-	creation_time = video.created_at.replace('Z', '+00:00')
+	channel_name = video['user_name'].lower()
+	video_twitch_id = video['id']
+	title = video['title']
+
+	creation_time = video['created_at'].replace('Z', '+00:00')
 	creation_time = datetime.fromisoformat(creation_time).strftime('%Y-%m-%d %H:%M:%S.%f')
 
-	hours, minutes, seconds, _ = split_twitch_duration(video.duration)
+	hours, minutes, seconds, _ = split_twitch_duration(video['duration'])
 	duration = f'{hours:02}:{minutes:02}:{seconds:02}'
 
-	print(f'Importing the chat log {i+1} of {len(file_path_list)} for the user "{channel_name}" ({video_twitch_id} at {creation_time}) with {len(chat_list)} messages from "{file_path}"...')
+	print(f'Importing the chat log {i+1} of {len(file_path_list)} for the VOD "{title}" ({video_twitch_id} at {creation_time} from "{channel_name}") with {len(chat_list)} messages from "{file_path}"...')
 
 	try:
 		db.execute('INSERT OR IGNORE INTO Channel (Name) VALUES (:name);', {'name': channel_name})
@@ -73,15 +70,16 @@ for i, file_path in enumerate(file_path_list):
 		print(f'- Failed to insert the channel "{channel_name}" with the error: {repr(error)}')
 		continue
 
-	try:		
+	try:
+		# We want to fail if the VOD is already in the database.	
 		db.execute(	'''
-					INSERT OR IGNORE INTO Video (ChannelId, TwitchId, Title, CreationTime, Duration)
+					INSERT INTO Video (ChannelId, TwitchId, Title, CreationTime, Duration)
 					VALUES ((SELECT CL.Id FROM Channel CL WHERE CL.Name = :channel_name), :twitch_id, :title, :creation_time, :duration);
 					''',
-					{'channel_name': channel_name, 'twitch_id': video_twitch_id, 'title': video.title, 'creation_time': creation_time, 'duration': duration})
+					{'channel_name': channel_name, 'twitch_id': video_twitch_id, 'title': title, 'creation_time': creation_time, 'duration': duration})
 
 	except sqlite3.Error as error:
-		print(f'- Failed to insert the video {video_twitch_id} ({video.title}) with the error: {repr(error)}')
+		print(f'- Failed to insert the video {video_twitch_id} ({title}) with the error: {repr(error)}')
 		continue
 
 	for j, chat in enumerate(chat_list):		
@@ -102,5 +100,4 @@ if not file_path_list:
 	print(f'Could not find any chat logs in "{args.json_search_path}".')
 
 print()
-print(f'The remaining API rate limit is {helix.api.rate_limit_remaining} of {helix.api.rate_limit_points} points.')
 print('Finished running.')

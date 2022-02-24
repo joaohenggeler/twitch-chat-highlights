@@ -89,17 +89,18 @@ def split_twitch_duration(duration: str) -> Tuple[int, int, int, int]:
 def convert_twitch_timestamp_to_datetime(timestamp: str) -> datetime:
 
 	# Datetime format: YYYY-MM-DDThh:mm:ss.sssZ
-	# Where the following are also possible:
+	# Where the following precisions where observed:
+	# - YYYY-MM-DDThh:mm:ss.sssssssssZ
 	# - YYYY-MM-DDThh:mm:ss.ssZ
 	# - YYYY-MM-DDThh:mm:ss.sZ
 	# - YYYY-MM-DDThh:mm:ssZ
 	
+	# Truncate anything past the microsecond precision.
 	if '.' in timestamp:
-		milliseconds: Union[str, int]
-		begin, milliseconds = timestamp.rsplit('.', 1)
-		milliseconds, _ = milliseconds.rsplit('Z', 1)
-		milliseconds = int(milliseconds)
-		timestamp = begin + '.' + f'{milliseconds:03}' + 'Z'
+		microseconds: Union[str, int]
+		beginning, microseconds = timestamp.rsplit('.', 1)
+		microseconds, _ = microseconds.rsplit('Z', 1)
+		timestamp = beginning + '.' + microseconds[:6] + 'Z'
 	
 	timestamp = timestamp.replace('Z', '+00:00')
 	return datetime.fromisoformat(timestamp)

@@ -8,9 +8,6 @@
 
 	The previously mentioned chat messages are gathered by either running the bot in "chat_transcript_bot.py" during the
 	stream, or by retriving the VOD's JSON chat logs from the Twitch API and importing them with "import_chat_json_into_database.py".
-	See these third-party tools:
-	- https://github.com/PetterKraabol/Twitch-Chat-Downloader
-	- https://github.com/jdpurcell/RechatTool
 """
 
 import re
@@ -29,20 +26,19 @@ from common import CommonConfig, split_twitch_duration, convert_twitch_timestamp
 
 ####################################################################################################
 
-class HighlightType():
+class HighlightCategory():
 
 	# From the config file.
 	name: str
 	words: List[str]
 	top: int
 	color: str
-	skip_plot: bool
 	skip_summary: bool
 
 	# Determined at runtime.
 	search_words: List[Union[str, Pattern]]
 
-	# For the HighlightBalanceType subclass.
+	# For the HighlightBalanceCategory subclass.
 	positive_words: List[str]
 	negative_words: List[str]
 	comparison_name: str
@@ -50,7 +46,6 @@ class HighlightType():
 
 	def __init__(self, **kwargs):
 		self.words = []
-		self.skip_plot = False
 		self.skip_summary = False
 		self.__dict__.update(kwargs)
 	
@@ -65,7 +60,7 @@ class HighlightType():
 			
 			self.search_words.append(word)
 
-class HighlightBalanceType(HighlightType):
+class HighlightBalanceCategory(HighlightCategory):
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
@@ -74,8 +69,8 @@ class HighlightComparison():
 
 	# From the config file.
 	name: str
-	positive_type: str
-	negative_type: str
+	positive_category: str
+	negative_category: str
 	
 	positive_name: str
 	negative_name: str
@@ -88,8 +83,8 @@ class HighlightComparison():
 	skip_summary: bool
 
 	# Determined at runtime.
-	positive_highlight: 'HighlightType'
-	negative_highlight: 'HighlightType'
+	positive_highlight: 'HighlightCategory'
+	negative_highlight: 'HighlightCategory'
 
 	def __init__(self, **kwargs):
 		self.skip_summary = False
@@ -108,11 +103,11 @@ class HighlightsConfig(CommonConfig):
 	top_bucket_distance_threshold: int
 	top_url_delay: int
 
-	show_plots: bool
-	add_plots_url_template: bool
+	plot_categories: Union[bool, list]
+	plot_threshold: bool
 	show_word_list: bool
 
-	types: List['HighlightType']
+	categories: List['HighlightCategory']
 	comparisons: List['HighlightComparison']
 
 	# Determined at runtime.
@@ -128,15 +123,15 @@ class HighlightsConfig(CommonConfig):
 	def __init__(self):
 		super().__init__()
 
-		self.types = []
+		self.categories = []
 		self.comparisons = []
 
 		for key, value in self.json_config['highlights'].items():
 
-			if key == 'types':
-				for type_params in value:
-					highlight_type = HighlightType(**type_params)
-					self.types.append(highlight_type)
+			if key == 'categories':
+				for category_params in value:
+					highlight_category = HighlightCategory(**category_params)
+					self.categories.append(highlight_category)
 			elif key == 'comparisons':
 				for comparison_params in value:
 					highlight_comparison = HighlightComparison(**comparison_params)
@@ -160,8 +155,8 @@ class HighlightsConfig(CommonConfig):
 		self.vods_end_time = self.vods_end_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 		for comparison in self.comparisons:
-			comparison.positive_highlight = next(highlight for highlight in self.types if highlight.name == comparison.positive_type)
-			comparison.negative_highlight = next(highlight for highlight in self.types if highlight.name == comparison.negative_type)
+			comparison.positive_highlight = next(highlight for highlight in self.categories if highlight.name == comparison.positive_category)
+			comparison.negative_highlight = next(highlight for highlight in self.categories if highlight.name == comparison.negative_category)
 
 ####################################################################################################
 
@@ -300,7 +295,7 @@ class Video():
 		self.NumBuckets = ceil(duration_in_seconds / config.bucket_length)
 
 		self.Frequency = {}
-		for highlight in config.types:
+		for highlight in config.categories:
 			self.Frequency[highlight.name] = [0] * self.NumBuckets
 
 		self.Url = f'https://www.twitch.tv/videos/{self.TwitchId}'
@@ -323,7 +318,7 @@ print()
 
 for i, video in enumerate(video_list):
 
-	print(f'- Processing video {i+1} of {len(video_list)} ({video.TwitchId} at {video.CreationTime})...')
+	print(f'- Processing the VOD {i+1} of {len(video_list)} "{video.Title}" ({video.TwitchId} at {video.CreationTime})...')
 
 	try:
 		cursor = db.execute('''
@@ -349,7 +344,7 @@ for i, video in enumerate(video_list):
 		word_list = chat['Message'].lower().split()
 		bucket = floor(chat['Offset'] / config.bucket_length)
 
-		for highlight in config.types:
+		for highlight in config.categories:
 			
 			skip_to_next_highlight = False
 
@@ -371,21 +366,26 @@ for i, video in enumerate(video_list):
 				if skip_to_next_highlight:
 					break
 
-	if not config.show_plots:
+	if not config.plot_categories:
 		continue
 
 	# Plot the word frequency.
 	figure, axis = plt.subplots(figsize=(12, 6))
 
-	for highlight in config.types:
-		if highlight.skip_plot:
+	max_messages = 0
+	for highlight in config.categories:
+
+		if isinstance(config.plot_categories, list) and highlight.name not in config.plot_categories:
 			continue
 
 		y_data = video.Frequency[highlight.name]
 		x_data = [i * config.bucket_length for i in range(len(y_data))]
 		axis.plot(x_data, y_data, label=highlight.name, color=highlight.color, linewidth=0.7)
 
-	axis.axhline(y=config.message_threshold, label=f'Threshold ({config.message_threshold})', color='k', linestyle='dashed')
+		max_messages = max(max_messages, max(y_data))
+
+	if config.plot_threshold:
+		axis.axhline(y=config.message_threshold, label=f'Threshold ({config.message_threshold})', color='k', linestyle='dashed')
 
 	axis.set(xlabel=f'Time in Buckets of {config.bucket_length} Seconds', ylabel='Number of Messages', title=f'"{video.Title}" ({video.CreationTime}, {video.Duration})\n{video.Url}')
 	axis.legend()
@@ -398,7 +398,8 @@ for i, video in enumerate(video_list):
 	axis.xaxis.set_major_formatter(seconds_formatter)
 	axis.xaxis.set_major_locator(MultipleLocator(30*60))
 	axis.xaxis.set_minor_locator(AutoMinorLocator(4))
-	axis.yaxis.set_major_locator(MultipleLocator(5))
+	
+	axis.yaxis.set_major_locator(MultipleLocator(5 if max_messages <= 100 else 10))
 
 	axis.tick_params(axis='x', which='major', length=7)
 	axis.tick_params(axis='x', which='minor', length=4)
@@ -413,7 +414,7 @@ for i, video in enumerate(video_list):
 
 print()
 
-if not config.show_plots:
+if not config.plot_categories:
 	print('Skipped the chat message plots at the user\'s request.')
 	print()
 
@@ -446,7 +447,7 @@ for video in video_list:
 for comparison in config.comparisons:
 	for kind in ['positive', 'negative', 'controversial']:
 
-		highlight_balance = HighlightBalanceType()
+		highlight_balance = HighlightBalanceCategory()
 
 		highlight_balance.name = getattr(comparison, kind + '_name')
 		highlight_balance.top = getattr(comparison, kind + '_top')
@@ -456,7 +457,7 @@ for comparison in config.comparisons:
 		highlight_balance.comparison_name = comparison.name
 		highlight_balance.comparison_kind = kind
 
-		config.types.append(highlight_balance)
+		config.categories.append(highlight_balance)
 
 ####################################################################################################
 
@@ -466,21 +467,16 @@ print(f'Summarizing the top highlights.')
 print()
 
 summary_text = f'**Twitch Highlights ({config.vods_begin_date} to {config.vods_end_date}):**\n\n'
-summary_text += f'Counting the number of chat messages with specific words/emotes in a {config.bucket_length} second window.\n\n'
-
-if config.add_plots_url_template:
-	summary_text += '[**Twitch Chat Reactions Over Time**](REPLACEME)\n\n'
-
-summary_text += '&nbsp;\n\n'
+summary_text += f'Counting the number of chat messages with specific words/emotes in a {config.bucket_length} second window.\n\n&nbsp;\n\n'
 
 Candidate = namedtuple('Candidate', ['Video', 'Bucket', 'Count'])
 
-for highlight in config.types:
+for highlight in config.categories:
 
 	if highlight.skip_summary:
 		continue
 	
-	is_balance = isinstance(highlight, HighlightBalanceType)
+	is_balance = isinstance(highlight, HighlightBalanceCategory)
 
 	highlight_candidates = []
 	for video in video_list:

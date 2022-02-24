@@ -25,11 +25,11 @@
 		"top_bucket_distance_threshold": 3,
 		"top_url_delay": 15,
 		
-		"show_plots": false,
-		"add_plots_url_template": false,
+		"plot_categories": true,
+		"plot_threshold": false,
 		"show_word_list": false,
 
-		"types":
+		"categories":
 		[
 			{
 				"name": "Good Bit",
@@ -81,12 +81,26 @@
 				"top": 1,
 				"color": "#0000cd"
 			},
-			
+
 			{
 				"name": "Weird",
 				"words": ["WutFace", "DansGame", "WeirdChamp", "yikes", "regex:WTF+", "regex:bruh+", "regex:\\?+"],
 				"top": 1,
 				"color": "#000000"
+			},
+
+			{
+				"name": "Surprise",
+				"words": ["D:"],
+				"top": 3,
+				"color": "#cde677"
+			},
+
+			{
+				"name": "Rambling",
+				"words": ["peepoG"],
+				"top": 3,
+				"color": "#006400"
 			},
 
 			{
@@ -101,8 +115,8 @@
 		[
 			{
 				"name": "+2 vs -2",
-				"positive_type": "Good Bit",
-				"negative_type": "Bad Bit",
+				"positive_category": "Good Bit",
+				"negative_category": "Bad Bit",
 
 				"positive_name": "Best Bit",
 				"negative_name": "Worst Bit",
