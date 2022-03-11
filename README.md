@@ -51,11 +51,11 @@ This section goes through every necessary step in order to generate the highligh
 		* `vod_criteria`: how to locate the channel's VODs. Can either be `date` to search in a given time period, or `notes` to search for specific text in the `Notes` column in the database. **Must be changed.**
 		* `begin_date`: the starting date for the first `vod_criteria` in the format `YYYY-MM-DD`. **Must be changed.**
 		* `num_days`: how many days to consider for the first `vod_criteria`. Together with the previous configuration, this defines the range of days to search for VODs. For example, setting `begin_date` to `2022-01-01` and `num_days` to `31` specifies every VOD during the month of January.
-		* `notes`: the text for the second `vod_criteria`. This allows you to tag specific VODs (e.g. a specific game series) and filter any videos that would otherwise be matched by the `date` criteria. In order to use this feature you must edit the `Notes` column for each video in the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Note that this text comparison is case insensitive and matches any substring. For example, the text `soul` matches both `dark souls` and `DARK SOULS`. **Must be changed.**
+		* `notes`: the text for the second `vod_criteria`. This allows you to tag specific VODs (e.g. a specific game series) and filter any videos that would otherwise be matched by the `date` criteria. In order to use this feature, you must first edit the `Notes` column for each video in the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Note that this text comparison is case insensitive and matches any substring. For example, the text `soul` matches both `dark souls` and `DARK SOULS`. **Must be changed.**
 
 		* `get_vods_from_api`: whether or not to automatically find VODs in the `begin_date` and `num_days`  time period using the Twitch API. Can only be enabled if `vod_criteria` is set to `date`.
 		* `vod_type`: the type of VOD to search for when `get_vods_from_api` is enabled. This may be `archive` (Past Broadcasts),  `highlight` (Highlights),  `upload` (Uploads), or `all` (all of the previous). The type `archive` should be used in the vast majority of cases, but it could be changed to `highlight` if the VODs have been deleted from the Past Broadcasts section.
-		* `use_youtube_urls`: whether or not to link to the YouTube video in the plots and summary instead of the Twitch VODs. Like the `notes` configuration, this requires you edit the `YouTubeId` column for each video in the database. If this configuration is true but a `YouTubeId` is not set, then the Twitch URL is used instead.
+		* `use_youtube_urls`: whether or not to link to YouTube videos in the plots and summary instead of the Twitch VODs. Like the `notes` configuration, this requires you to first edit the `YouTubeId` column for each video in the database. If this configuration is true but a `YouTubeId` is not set, then the Twitch URL is used instead.
 
 		* `bucket_length`: the size of each window or bucket in seconds. The number of chat messages with specific words and emotes are counted per bucket.
 		* `message_threshold`: the minimum number of chat messages for each category that must exist in a bucket to consider it a highlight. Used to remove any moments that do not have a significant number of chat reactions.
@@ -97,11 +97,11 @@ This section goes through every necessary step in order to generate the highligh
 	* Running a bot with `run_chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
 4. Adjust the configurations `channel_name`, `vod_criteria`, `begin_date`, `num_days`, and `notes` depending on your use case. Then, run `find_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title. [A sample summary text file and plot image can be found in this directory.](Samples)
-
 Here are two use cases and their appropriate configurations.
 
 	* Generating the highlights from recent streams whose chat logs were collected using the bot:
 		
+		* `channel_name`: `username`
 		* `vod_criteria`: `date`
 		* `begin_date`: `2022-01-01`
 		* `num_days`: `7`
@@ -112,6 +112,7 @@ Here are two use cases and their appropriate configurations.
 
 	* Generating the highlights from old streams whose VODs have since been deleted from Twitch. The chat logs were saved when the VODs were still available and were later imported using `import_chat_json_into_database.py`. The VODs themselves were uploaded to YouTube without being edited, and their YouTube IDs were entered into the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Finally, let's assume they were all tagged as `Dark Souls` in the `Notes` column in the database:
 
+		* `channel_name`: `username`
 		* `vod_criteria`: `notes`
 		* `notes`: `dark souls`
 		
