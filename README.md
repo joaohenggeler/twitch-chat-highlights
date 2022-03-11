@@ -97,7 +97,7 @@ This section goes through every necessary step in order to generate the highligh
 	* Running a bot with `run_chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
 4. Adjust the configurations `channel_name`, `vod_criteria`, `begin_date`, `num_days`, and `notes` depending on your use case. Then, run `find_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title. [A sample summary text file and plot image can be found in this directory.](Samples)
-Here are two use cases and their appropriate configurations.
+Below are two use cases and their appropriate configurations.
 
 	* Generating the highlights from recent streams whose chat logs were collected using the bot:
 		
@@ -110,7 +110,7 @@ Here are two use cases and their appropriate configurations.
 		* `vod_type`: `archive`
 		* `use_youtube_urls`: `false`
 
-	* Generating the highlights from old streams whose VODs have since been deleted from Twitch. The chat logs were saved when the VODs were still available and were later imported using `import_chat_json_into_database.py`. The VODs themselves were uploaded to YouTube without being edited, and their YouTube IDs were entered into the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Finally, let's assume they were all tagged as `Dark Souls` in the `Notes` column in the database:
+	* Generating the highlights from old streams whose VODs have since been deleted from Twitch. The chat logs were saved when the VODs were still available and were imported using `import_chat_json_into_database.py`. The VODs themselves were uploaded to YouTube without being edited, and their YouTube IDs were entered into the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Finally, let's assume they were all tagged as `Dark Souls` in the database:
 
 		* `channel_name`: `username`
 		* `vod_criteria`: `notes`
