@@ -49,6 +49,8 @@ class CommonConfig():
 						'Title' TEXT NOT NULL,
 						'CreationTime' TIMESTAMP NOT NULL,
 						'Duration' TIME NOT NULL,
+						'YouTubeId' VARCHAR(50) UNIQUE,
+						'Notes' TEXT,
 
 						FOREIGN KEY (ChannelId) REFERENCES Channel (Id)
 						);
@@ -100,7 +102,7 @@ def convert_twitch_timestamp_to_datetime(timestamp: str) -> datetime:
 		microseconds: Union[str, int]
 		beginning, microseconds = timestamp.rsplit('.', 1)
 		microseconds, _ = microseconds.rsplit('Z', 1)
-		timestamp = beginning + '.' + microseconds[:6] + 'Z'
+		timestamp = beginning + '.' + microseconds[:6].ljust(6, '0') + 'Z'
 	
 	timestamp = timestamp.replace('Z', '+00:00')
 	return datetime.fromisoformat(timestamp)

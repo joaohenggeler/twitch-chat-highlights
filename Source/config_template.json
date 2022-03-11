@@ -16,13 +16,19 @@
 	"highlights":
 	{
 		"channel_name": "<Username>",
+		
+		"vod_criteria": "<date or notes>",
 		"begin_date": "<YYYY-MM-DD>",
 		"num_days": 7,
-		"video_type": "archive",
-		
+		"notes": "<Notes>",
+
+		"get_vods_from_api": true,
+		"vod_type": "archive",
+		"use_youtube_urls": false,
+
 		"bucket_length": 20,
 		"message_threshold": 15,
-		"top_bucket_distance_threshold": 3,
+		"top_bucket_distance_threshold": 3,		
 		"top_url_delay": 15,
 		
 		"plot_categories": true,
@@ -77,7 +83,7 @@
 			
 			{
 				"name": "Sad",
-				"words": ["PepeHands", "FeelsBadMan", "Sadge", ":("],
+				"words": ["PepeHands", "FeelsBadMan", "Sadge", "BibleThump", ":("],
 				"top": 1,
 				"color": "#0000cd"
 			},

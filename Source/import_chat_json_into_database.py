@@ -8,7 +8,7 @@ import json
 import sqlite3
 import sys
 from argparse import ArgumentParser
-from datetime import datetime
+from datetime import timedelta
 from glob import glob
 
 from common import CommonConfig, split_twitch_duration, convert_twitch_timestamp_to_datetime
@@ -29,10 +29,10 @@ except sqlite3.Error as error:
 	print(f'Failed to connect to the database with the error: {repr(error)}')
 	sys.exit(1)
 
-print()
-
 file_path_list = glob(args.json_search_path)
 for i, file_path in enumerate(file_path_list):
+
+	print()
 
 	with open(file_path, encoding=args.json_encoding) as file:
 		chat_log = json.load(file)
@@ -56,8 +56,8 @@ for i, file_path in enumerate(file_path_list):
 	video_twitch_id = video['id']
 	title = video['title']
 
-	creation_time = video['created_at'].replace('Z', '+00:00')
-	creation_time = datetime.fromisoformat(creation_time).strftime('%Y-%m-%d %H:%M:%S.%f')
+	creation_datetime = convert_twitch_timestamp_to_datetime(video['created_at'])
+	creation_time = creation_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 	hours, minutes, seconds, _ = split_twitch_duration(video['duration'])
 	duration = f'{hours:02}:{minutes:02}:{seconds:02}'
@@ -79,24 +79,31 @@ for i, file_path in enumerate(file_path_list):
 					{'channel_name': channel_name, 'twitch_id': video_twitch_id, 'title': title, 'creation_time': creation_time, 'duration': duration})
 
 	except sqlite3.Error as error:
-		print(f'- Failed to insert the video {video_twitch_id} ({title}) with the error: {repr(error)}')
+		print(f'- Failed to insert the VOD with the error: {repr(error)}')
 		continue
 
-	for j, chat in enumerate(chat_list):		
+	chat_message_list = []
 
-		creation_datetime = convert_twitch_timestamp_to_datetime(chat['created_at'])
-		timestamp = creation_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+	for chat in chat_list:
+		
+		# The "created_at" value doesn't seem to be what we want so we'll compute the timestamp relative to the VOD's creation time.
+		# This is good enough for our purposes even though we're losing precision.
+		message_creation_datetime = creation_datetime + timedelta(seconds=chat['content_offset_seconds'])
+		timestamp = message_creation_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
 		message = chat['message']['body']
 
-		try:
-			db.execute(	'''
-						INSERT INTO Chat (ChannelId, Timestamp, Message)
-						VALUES ((SELECT CL.Id FROM Channel CL WHERE CL.Name = :channel_name), :timestamp, :message);
-						''', {'channel_name': channel_name, 'timestamp': timestamp, 'message': message})
-		except sqlite3.Error as error:
-			print(f'- Failed to insert message {j+1} of {len(chat_list)} ({timestamp}, "{message}")')
+		chat_message_list.append({'channel_name': channel_name, 'twitch_id': video_twitch_id, 'timestamp': timestamp, 'message': message})
+
+	try:
+		db.executemany(	'''
+						INSERT INTO Chat (ChannelId, VideoId, Timestamp, Message)
+						VALUES ((SELECT CL.Id FROM Channel CL WHERE CL.Name = :channel_name), (SELECT V.Id FROM Video V WHERE V.TwitchId = :twitch_id), :timestamp, :message);
+						''', chat_message_list)
+	except sqlite3.Error as error:
+		print(f'- Failed to insert the chat messages with the error: {repr(error)}')
 	
 if not file_path_list:
+	print()
 	print(f'Could not find any chat logs in "{args.json_search_path}".')
 
 print()
