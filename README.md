@@ -110,7 +110,7 @@ Below are two use cases and their appropriate configurations.
 		* `vod_type`: `archive`
 		* `use_youtube_urls`: `false`
 
-	* Generating the highlights from old streams whose VODs have since been deleted from Twitch. The chat logs were saved when the VODs were still available and were imported using `import_chat_json_into_database.py`. The VODs themselves were uploaded to YouTube without being edited, and their YouTube IDs were entered into the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Finally, let's assume they were all tagged as `Dark Souls` in the database:
+	* Generating the highlights from old streams whose VODs have since been deleted from Twitch. The chat logs were saved when the VODs were still available and were later imported using the script described in the previous step. The VODs themselves were uploaded to YouTube without being edited, and their YouTube IDs were entered into the database using a third-party tool like the [DB Browser for SQLite](https://sqlitebrowser.org/). Finally, let's assume they were all tagged as `Dark Souls` in the database:
 
 		* `channel_name`: `username`
 		* `vod_criteria`: `notes`
