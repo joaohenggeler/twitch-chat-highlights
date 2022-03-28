@@ -295,7 +295,7 @@ if config.get_vods_from_api:
 ####################################################################################################
 
 # Iterate over each VOD and its chat for the requested time period. For each VOD, we'll count the
-# number of times a specific word/emote was sent in the chat, and also generate a plot with each
+# number of times a specific word or emote was sent in the chat, and also generate a plot with each
 # category category's word frequency.
 
 class Video():
@@ -513,13 +513,13 @@ for comparison in config.comparisons:
 
 ####################################################################################################
 
-# Create a text file linking to the top highlights for each word/emote category.
+# Create a text file linking to the top highlights for each word and emote category.
 
 print(f'Summarizing the top highlights.')
 print()
 
 summary_text = f'**Twitch Highlights ({config.vods_criteria_summary_title}):**\n\n'
-summary_text += f'Counting the number of chat messages with specific words/emotes in a {config.bucket_length} second window.\n\n&nbsp;\n\n'
+summary_text += f'Counting the number of chat messages with specific words and emotes in a {config.bucket_length}-second window.\n\n&nbsp;\n\n'
 
 Candidate = namedtuple('Candidate', ['Video', 'Bucket', 'Count'])
 

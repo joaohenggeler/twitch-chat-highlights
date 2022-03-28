@@ -28,9 +28,12 @@ class CommonConfig():
 
 	def connect_to_database(self) -> sqlite3.Connection:
 
-		db = sqlite3.connect(self.database_filename)
-		db.isolation_level = None
+		db = sqlite3.connect(self.database_filename, isolation_level=None)
 		db.row_factory = sqlite3.Row
+
+		db.execute('''PRAGMA journal_mode = WAL;''')
+		db.execute('''PRAGMA synchronous = NORMAL;''')
+		db.execute('''PRAGMA temp_store = MEMORY;''')
 
 		db.execute('''
 						CREATE TABLE IF NOT EXISTS 'Channel'
