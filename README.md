@@ -24,11 +24,11 @@ The following Python packages are used:
 
 This section documents every script inside [the source directory](Source).
 
-* `import_chat_json_into_database.py`: imports one or more JSON files with a Twitch VOD's chat log into the database.
+* `import.py`: imports one or more JSON files with a Twitch VOD's chat log into the database.
 
-* `run_chat_transcript_bot.py`: runs a bot that joins a given number of Twitch channels and saves any public chat messages sent during a live stream to the database. **Be sure to get a streamer's permission before running this bot on their channel.**
+* `bot.py`: runs a bot that joins a given number of Twitch channels and saves any public chat messages sent during a live stream to the database. **Be sure to get a streamer's permission before running this bot on their channel.**
 
-* `find_chat_highlights.py`: processes any saved chat messages in the database between two dates, generates a summary text file with the top highlights in different categories, and optionally creates images that plot chat's reactions during each live stream.
+* `highlight.py`: processes any saved chat messages in the database between two dates, generates a summary text file with the top highlights in different categories, and optionally creates images that plot chat's reactions during each live stream.
 
 * `common.py`: a module that defines any general purpose functions used by all scripts, including loading configuration files, connecting to the database, and handling Twitch's timestamp formats.
 
@@ -38,9 +38,9 @@ This section goes through every necessary step in order to generate the highligh
 
 1. Create a Twitch account for the bot, log into the [Twitch Developers website](https://dev.twitch.tv), and register a new application in the console page. Set the redirect URL to `http://localhost:3000`, take note of the client ID, and generate a new client secret. Before continuing, make sure to either log out from your personal Twitch account or log into the bot's account. If you don't do this, the bot may become associated with your personal account when generating the access token. Download the latest [Twitch CLI](https://github.com/twitchdev/twitch-cli/releases) release and run the following two commands: `twitch configure -i "<Client Id>" -s "<Client Secret>"` (to configure the CLI) and `twitch token -u -s "chat:read"` (to generate the user access token). If you're redirected to a web page, press Authorize. Take note of the refresh token generated in this step. Finally, enter the client ID and access token into the `client_id` and `access_token` options, respectively.
 
-Note that, even if you don't want to run the bot, the client ID and access token are still required by the `find_chat_highlights.py` script if the `get_vods_from_api` option is enabled. For more information on generating an access token, refer to [this page](https://dev.twitch.tv/docs/cli/token-command). 
+Note that, even if you don't want to run the bot, the client ID and access token are still required by the `highlight.py` script if the `get_vods_from_api` option is enabled. For more information on generating an access token, refer to [this page](https://dev.twitch.tv/docs/cli/token-command). 
 
-2. Make a copy of the [`config_template.json`](Source/config_template.json) file, rename it to `config.json`, and change the required options. Most of them can be left with their default values.
+2. Make a copy of the [`config.template.json`](Source/config.template.json) file, rename it to `config.json`, and change the required options. Most of them can be left with their default values.
 
 	* `common`: the options that apply to all scripts.
 
@@ -48,13 +48,13 @@ Note that, even if you don't want to run the bot, the client ID and access token
 		* `access_token`: the Access Token obtained in the previous step. **Must be changed.**
 		* `database_path`: the path to the database that is created and used by the scripts.
 
-	* `bot`: the options that only apply to `run_chat_transcript_bot.py`.
+	* `bot`: the options that only apply to `bot.py`.
 
 		* `channels`: a list of one or more channels where the bot should join and save messages from. **Must be changed.**
 		* `max_write_retries`: the maximum number of retry attempts to perform if a chat message couldn't be inserted into the database.
 		* `write_retry_wait_time`: how many seconds to wait between retries.
 
-	* `highlights`: the options that only apply to `find_chat_highlights.py`.
+	* `highlights`: the options that only apply to `highlight.py`.
 
 		* `channel_name`: the channel whose VODs will be searched for highlights. **Must be changed.**
 		
@@ -102,11 +102,11 @@ Note that, even if you don't want to run the bot, the client ID and access token
 
 3. Insert the chat messages for the desired VODs in the database defined by the `database_path` option. You can do this one of two ways:
 
-	* Running a third-party to tool like [Twitch Chat Downloader](https://github.com/PetterKraabol/Twitch-Chat-Downloader) to download the JSON chat log for each VOD using the old v5 Twitch API. These can then be imported using `import_chat_json_into_database.py`. Note that this method will likely stop working on February 28th, 2022, since [Twitch is shutting down the v5 API](https://blog.twitch.tv/en/2021/07/15/legacy-twitch-api-v5-shutdown-details-and-timeline/). You can still import the chat logs if you have access to their JSON files.
+	* Running a third-party to tool like [Twitch Chat Downloader](https://github.com/PetterKraabol/Twitch-Chat-Downloader) to download the JSON chat log for each VOD using the old v5 Twitch API. These can then be imported using `import.py`. Note that this method will likely stop working on February 28th, 2022, since [Twitch is shutting down the v5 API](https://blog.twitch.tv/en/2021/07/15/legacy-twitch-api-v5-shutdown-details-and-timeline/). You can still import the chat logs if you have access to their JSON files.
 
-	* Running a bot with `run_chat_transcript_bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
+	* Running a bot with `bot.py` that saves any public chat messages sent during a live stream to the database. **Again, be sure to get a streamer's permission before running this bot on their channel.**
 
-4. Adjust the options `channel_name`, `vod_criteria`, `begin_date`, `num_days`, and `notes` depending on your use case. Then, run `find_chat_highlights.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title. [A sample summary text file and plot image can be found in this directory.](Samples)
+4. Adjust the options `channel_name`, `vod_criteria`, `begin_date`, `num_days`, and `notes` depending on your use case. Then, run `highlight.py` to generate the highlight summary text file and, optionally, images that plot chat's reactions during each live stream. The summary contains some placeholder text marked with `REPLACEME` that may be replaced with each highlight's title. [A sample summary text file and plot image can be found in this directory.](Samples)
 Below are two use cases and their appropriate options.
 
 	* Generating the highlights from recent streams whose chat logs were collected using the bot:

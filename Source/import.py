@@ -12,8 +12,8 @@ from common import CommonConfig, split_twitch_duration, convert_twitch_timestamp
 if __name__ == '__main__':
 
 	parser = ArgumentParser(description='Imports one or more JSON files with a Twitch VOD\'s chat log into the database.')
-	parser.add_argument('json_search_path', help=r'Where to search for the JSON files. May include wildcards to import multiple files. E.g. "C:\Path\chat.json" or "C:\Path\*.json".')
-	parser.add_argument('json_encoding', nargs='?', default='utf-8', help='The character encoding used by the JSON files. Defaults to "%(default)s". See a list of possible encodings here: https://docs.python.org/3/library/codecs.html#standard-encodings')
+	parser.add_argument('search_path', help=r'Where to search for the JSON files. May include wildcards to import multiple files. E.g. "C:\Path\chat.json" or "C:\Path\*.json".')
+	parser.add_argument('encoding', nargs='?', default='utf-8', help='The character encoding used by the JSON files. If omitted, this defaults to "%(default)s". See a list of possible encodings here: https://docs.python.org/3/library/codecs.html#standard-encodings')
 	parser.add_argument('-overwrite', action='store_true', help='Delete any previous chat messages from a Twitch VOD before importing the JSON file.')	
 	args = parser.parse_args()
 
@@ -26,12 +26,12 @@ if __name__ == '__main__':
 		print(f'Failed to connect to the database with the error: {repr(error)}')
 		sys.exit(1)
 
-	file_path_list = glob(args.json_search_path)
+	file_path_list = glob(args.search_path)
 	for i, file_path in enumerate(file_path_list):
 
 		print()
 
-		with open(file_path, encoding=args.json_encoding) as file:
+		with open(file_path, encoding=args.encoding) as file:
 			chat_log = json.load(file)
 
 		if not isinstance(chat_log, dict):
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 		
 	if not file_path_list:
 		print()
-		print(f'Could not find any chat logs in "{args.json_search_path}".')
+		print(f'Could not find any chat logs in "{args.search_path}".')
 
 	print()
 	print('Finished running.')
