@@ -6,6 +6,7 @@
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime
 from typing import Tuple, Union
@@ -19,16 +20,22 @@ class CommonConfig():
 
 	client_id: str
 	access_token: str
-	database_filename: str
+	database_path: str
 
 	def __init__(self):
-		with open('config.json') as file:
+		
+		with open('config.json', encoding='utf-8') as file:
 			self.json_config = json.load(file)
+		
 		self.__dict__.update(self.json_config['common'])
+
+		self.database_path = os.path.abspath(self.database_path)
 
 	def connect_to_database(self) -> sqlite3.Connection:
 
-		db = sqlite3.connect(self.database_filename, isolation_level=None)
+		os.makedirs(os.path.dirname(self.database_path), exist_ok=True)
+
+		db = sqlite3.connect(self.database_path, isolation_level=None)
 		db.row_factory = sqlite3.Row
 
 		db.execute('''PRAGMA journal_mode = WAL;''')
@@ -36,24 +43,24 @@ class CommonConfig():
 		db.execute('''PRAGMA temp_store = MEMORY;''')
 
 		db.execute('''
-						CREATE TABLE IF NOT EXISTS 'Channel'
+						CREATE TABLE IF NOT EXISTS Channel
 						(
-						'Id' INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-						'Name' VARCHAR(50) NOT NULL UNIQUE
+						Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+						Name VARCHAR(50) NOT NULL UNIQUE
 						);
 						''')
 
 		db.execute('''
-						CREATE TABLE IF NOT EXISTS 'Video'
+						CREATE TABLE IF NOT EXISTS Video
 						(
-						'Id' INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-						'ChannelId' INTEGER NOT NULL,
-						'TwitchId' VARCHAR(50) NOT NULL UNIQUE,
-						'Title' TEXT NOT NULL,
-						'CreationTime' TIMESTAMP NOT NULL,
-						'Duration' TIME NOT NULL,
-						'YouTubeId' VARCHAR(50) UNIQUE,
-						'Notes' TEXT,
+						Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+						ChannelId INTEGER NOT NULL,
+						TwitchId VARCHAR(50) NOT NULL UNIQUE,
+						Title TEXT NOT NULL,
+						CreationTime TIMESTAMP NOT NULL,
+						Duration TIME NOT NULL,
+						YouTubeId VARCHAR(50) UNIQUE,
+						Notes TEXT,
 
 						FOREIGN KEY (ChannelId) REFERENCES Channel (Id)
 						);
@@ -61,13 +68,13 @@ class CommonConfig():
 
 		# VideoId can be NULL when we're storing messages from a live stream, meaning there's no VOD yet.
 		db.execute('''
-						CREATE TABLE IF NOT EXISTS 'Chat'
+						CREATE TABLE IF NOT EXISTS Chat
 						(
-						'Id' INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-						'ChannelId' INTEGER NOT NULL,
-						'VideoId' INTEGER,
-						'Timestamp' TIMESTAMP NOT NULL,
-						'Message' TEXT NOT NULL,
+						Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+						ChannelId INTEGER NOT NULL,
+						VideoId INTEGER,
+						Timestamp TIMESTAMP NOT NULL,
+						Message TEXT NOT NULL,
 
 						FOREIGN KEY (ChannelId) REFERENCES Channel (Id),
 						FOREIGN KEY (VideoId) REFERENCES Video (Id)

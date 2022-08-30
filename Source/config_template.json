@@ -1,9 +1,9 @@
 {
 	"common":
 	{
-		"client_id": "<Client Id>",
+		"client_id": "<Client ID>",
 		"access_token": "<Access Token>",
-		"database_filename": "chat.db"
+		"database_path": "chat.db"
 	},
 
 	"bot":
@@ -13,7 +13,7 @@
 		"write_retry_wait_time": 1
 	},
 
-	"highlights":
+	"highlight":
 	{
 		"channel_name": "<Username>",
 		
@@ -28,7 +28,7 @@
 
 		"bucket_length": 20,
 		"message_threshold": 15,
-		"top_bucket_distance_threshold": 3,		
+		"top_bucket_distance_threshold": 3,
 		"top_url_delay": 15,
 		
 		"plot_categories": true,
@@ -98,14 +98,14 @@
 			{
 				"name": "Surprise",
 				"words": ["D:"],
-				"top": 3,
+				"top": 1,
 				"color": "#cde677"
 			},
 
 			{
 				"name": "Rambling",
 				"words": ["peepoG"],
-				"top": 3,
+				"top": 1,
 				"color": "#006400"
 			},
 

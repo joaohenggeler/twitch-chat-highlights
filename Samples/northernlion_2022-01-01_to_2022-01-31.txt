@@ -1,6 +1,6 @@
 **Twitch Highlights (2022-01-01 to 2022-01-31):**
 
-Counting the number of chat messages with specific words/emotes in a 20 second window.
+Counting the number of chat messages with specific words and emotes in a 20-second window.
 
 &nbsp;
 
