@@ -54,7 +54,7 @@ Note that, even if you don't want to run the bot, the client ID and access token
 		* `max_write_retries`: the maximum number of retry attempts to perform if a chat message couldn't be inserted into the database.
 		* `write_retry_wait_time`: how many seconds to wait between retries.
 
-	* `highlights`: the options that only apply to `highlight.py`.
+	* `highlight`: the options that only apply to `highlight.py`.
 
 		* `channel_name`: the channel whose VODs will be searched for highlights. **Must be changed.**
 		
@@ -87,8 +87,8 @@ Note that, even if you don't want to run the bot, the client ID and access token
 		* `comparisons`: a list of dictionaries that each define a comparison between two highlight categories. Each comparison generates three new categories: positive, negative, and controversial. Used to see how divided chat is between the two categories.
 			
 			* `name`: the name of the comparison.
-			* `positive_type`: the name of a category defined in `highlights` to consider as the positive case.
-			* `negative_type`: the name of a category defined in `highlights` to consider as the negative case.
+			* `positive_type`: the name of a category defined in `highlight` to consider as the positive case.
+			* `negative_type`: the name of a category defined in `highlight` to consider as the negative case.
 
 			* `positive_name`: same as `name` in `categories` but for the newly generated positive category.
 			* `negative_name`: same as `name` in `categories` but for the newly generated negative category.
