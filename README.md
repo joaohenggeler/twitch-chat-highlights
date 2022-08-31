@@ -42,19 +42,19 @@ Note that, even if you don't want to run the bot, the client ID and access token
 
 2. Make a copy of the [`config.template.json`](Source/config.template.json) file, rename it to `config.json`, and change the required options. Most of them can be left with their default values.
 
-	* `common`: the options that apply to all scripts.
+	* `common`: options that apply to all scripts.
 
 		* `client_id`: the Client ID obtained in the previous step. **Must be changed.**
 		* `access_token`: the Access Token obtained in the previous step. **Must be changed.**
 		* `database_path`: the path to the database that is created and used by the scripts.
 
-	* `bot`: the options that only apply to `bot.py`.
+	* `bot`: options that only apply to `bot.py`.
 
 		* `channels`: a list of one or more channels where the bot should join and save messages from. **Must be changed.**
 		* `max_write_retries`: the maximum number of retry attempts to perform if a chat message couldn't be inserted into the database.
 		* `write_retry_wait_time`: how many seconds to wait between retries.
 
-	* `highlight`: the options that only apply to `highlight.py`.
+	* `highlight`: options that only apply to `highlight.py`.
 
 		* `channel_name`: the channel whose VODs will be searched for highlights. **Must be changed.**
 		
