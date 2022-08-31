@@ -2,6 +2,7 @@
 	"common":
 	{
 		"client_id": "<Client ID>",
+		"client_secret": "<Client Secret>",
 		"access_token": "<Access Token>",
 		"database_path": "chat.db"
 	},

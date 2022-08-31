@@ -36,16 +36,17 @@ This section documents every script inside [the source directory](Source).
 
 This section goes through every necessary step in order to generate the highlight summaries and plots.
 
-1. Create a Twitch account for the bot, log into the [Twitch Developers website](https://dev.twitch.tv), and register a new application in the console page. Set the redirect URL to `http://localhost:3000`, take note of the client ID, and generate a new client secret. Before continuing, make sure to either log out from your personal Twitch account or log into the bot's account. If you don't do this, the bot may become associated with your personal account when generating the access token. Download the latest [Twitch CLI](https://github.com/twitchdev/twitch-cli/releases) release and run the following two commands: `twitch configure -i "<Client Id>" -s "<Client Secret>"` (to configure the CLI) and `twitch token -u -s "chat:read"` (to generate the user access token). If you're redirected to a web page, press Authorize. Take note of the refresh token generated in this step. Finally, enter the client ID and access token into the `client_id` and `access_token` options, respectively.
+1. Create a Twitch account for the bot, log into the [Twitch Developers website](https://dev.twitch.tv), and register a new application in the console page. Set the redirect URL to `http://localhost:3000`, take note of the client ID, and generate a new client secret. Before continuing, make sure to either log out from your personal Twitch account or log into the bot's account. If you don't do this, the bot may become associated with your personal account when generating the access token. Download the latest [Twitch CLI](https://github.com/twitchdev/twitch-cli/releases) release and run the following two commands: `twitch configure -i "<Client Id>" -s "<Client Secret>"` (to configure the CLI) and `twitch token -u -s "chat:read"` (to generate the user access token). If you're redirected to a web page, press Authorize. Take note of the refresh token generated in this step. Finally, enter the client ID, client secret, and access token into the `client_id`, `client_secret`, and `access_token` options, respectively.
 
-Note that, even if you don't want to run the bot, the client ID and access token are still required by the `highlight.py` script if the `get_vods_from_api` option is enabled. For more information on generating an access token, refer to [this page](https://dev.twitch.tv/docs/cli/token-command). You can also use the [Twitch Token Generator](https://twitchtokengenerator.com/) to quickly generate tokens for testing purposes.
+Note that, even if you don't want to run the bot, the client ID and access token are still required by the `highlight.py` script if the `get_vods_from_api` option is enabled. For more information on generating an access token, refer to [this page](https://dev.twitch.tv/docs/cli/token-command). You can also use the [Twitch Token Generator](https://twitchtokengenerator.com/) to quickly generate tokens for testing purposes. In this case, select the `chat:read` scope, uncheck any others, and generate the client ID, access token, and refresh token.
 
 2. Make a copy of the [`config.template.json`](Source/config.template.json) file, rename it to `config.json`, and change the required options. Most of them can be left with their default values.
 
 	* `common`: options that apply to all scripts.
 
-		* `client_id`: the Client ID obtained in the previous step. **Must be changed.**
-		* `access_token`: the Access Token obtained in the previous step. **Must be changed.**
+		* `client_id`: the client ID obtained in the previous step. **Must be changed.**
+		* `client_secret`: the client secret obtained in the previous step. This may be set to null if you generated the client ID and access token using the Twitch Token Generator website. **Must be changed.**
+		* `access_token`: the access token obtained in the previous step. **Must be changed.**
 		* `database_path`: the path to the database that is created and used by the scripts.
 
 	* `bot`: options that only apply to `bot.py`.

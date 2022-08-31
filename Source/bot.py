@@ -46,7 +46,7 @@ if __name__ == '__main__':
 	class ChatTranscriptBot(commands.Bot):
 
 		def __init__(self):
-			super().__init__(token=config.access_token, prefix='!', initial_channels=config.channels)
+			super().__init__(token=config.access_token, prefix='!', client_secret=config.client_secret, initial_channels=config.channels)
 
 			try:
 				self.db = config.connect_to_database()

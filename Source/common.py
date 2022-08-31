@@ -9,7 +9,7 @@ import json
 import os
 import sqlite3
 from datetime import datetime
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 ####################################################################################################
 
@@ -19,6 +19,7 @@ class CommonConfig():
 	json_config: dict
 
 	client_id: str
+	client_secret: Optional[str]
 	access_token: str
 	database_path: str
 
