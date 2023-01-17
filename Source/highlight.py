@@ -34,6 +34,7 @@ class Category():
 	comparison_kind: str
 
 	def __init__(self, **kwargs):
+		
 		self.words = []
 		self.skip_summary = False
 		self.__dict__.update(kwargs)
@@ -116,6 +117,7 @@ class HighlightConfig(CommonConfig):
 	vods_criteria_filename_suffix: str
 
 	def __init__(self):
+		
 		super().__init__()
 
 		self.categories = []
@@ -311,6 +313,7 @@ if __name__ == '__main__':
 		HasYouTubeUrl: bool
 
 		def __init__(self, **kwargs):
+			
 			self.__dict__.update(kwargs)
 
 			self.CreationDateTime = datetime.fromisoformat(self.CreationTime)
@@ -410,7 +413,7 @@ if __name__ == '__main__':
 			continue
 
 		# Plot the word frequency.
-		figure, axis = plt.subplots(figsize=(12, 6))
+		figure, axes = plt.subplots(figsize=(12, 6))
 
 		max_messages = 0
 		for category in config.categories:
@@ -420,31 +423,31 @@ if __name__ == '__main__':
 
 			y_data = video.Frequency[category.name]
 			x_data = [i * config.bucket_length for i in range(len(y_data))]
-			axis.plot(x_data, y_data, label=category.name, color=category.color, linewidth=0.7)
+			axes.plot(x_data, y_data, label=category.name, color=category.color, linewidth=0.7)
 
 			max_messages = max(max_messages, max(y_data))
 
 		if config.plot_threshold:
-			axis.axhline(y=config.message_threshold, label=f'Threshold ({config.message_threshold})', color='k', linestyle='dashed')
+			axes.axhline(y=config.message_threshold, label=f'Threshold ({config.message_threshold})', color='k', linestyle='dashed')
 
-		axis.set(xlabel=f'Time in Buckets of {config.bucket_length} Seconds', ylabel='Number of Messages', title=f'"{video.Title}" ({video.CreationTime}, {video.Duration})\n{video.Url}')
-		axis.legend()
+		axes.set(xlabel=f'Time in Buckets of {config.bucket_length} Seconds', ylabel='Number of Messages', title=f'"{video.Title}" ({video.CreationTime}, {video.Duration})\n{video.Url}')
+		axes.legend()
 		
 		# Format the number of seconds as 00h00.
 		def seconds_formatter(num_seconds, position):
 			label, _ = str(timedelta(seconds=num_seconds)).rsplit(':', 1)
 			return label.replace(':', 'h', 1)
 
-		axis.xaxis.set_major_formatter(seconds_formatter)
-		axis.xaxis.set_major_locator(MultipleLocator(30*60 if video.DurationInSeconds >= 90*60 else 15*60))
-		axis.xaxis.set_minor_locator(AutoMinorLocator(4))
+		axes.xaxis.set_major_formatter(seconds_formatter)
+		axes.xaxis.set_major_locator(MultipleLocator(30*60 if video.DurationInSeconds >= 90*60 else 15*60))
+		axes.xaxis.set_minor_locator(AutoMinorLocator(4))
 		
-		axis.yaxis.set_major_locator(MultipleLocator(5 if max_messages <= 100 else 10))
+		axes.yaxis.set_major_locator(MultipleLocator(5 if max_messages <= 100 else 10))
 
-		axis.tick_params(axis='x', which='major', length=7)
-		axis.tick_params(axis='x', which='minor', length=4)
+		axes.tick_params(axis='x', which='major', length=7)
+		axes.tick_params(axis='x', which='minor', length=4)
 
-		axis.set_ylim(-2)
+		axes.set_ylim(-2)
 
 		figure.tight_layout()
 

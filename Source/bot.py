@@ -19,6 +19,7 @@ class BotConfig(CommonConfig):
 	write_retry_wait_time: int
 
 	def __init__(self):
+		
 		super().__init__()
 		self.__dict__.update(self.json_config['bot'])
 
@@ -90,10 +91,9 @@ if __name__ == '__main__':
 				except sqlite3.Error as error:
 					log.warning(f'Attempting to reinsert the message ({channel_name}, {timestamp}, "{message.content}") that failed with the error: {repr(error)}')
 					await asyncio.sleep(config.write_retry_wait_time)
-				finally:
+				else:
 					self.message_tally[channel_name]['success'] += 1
 					break
-
 			else:
 				log.error(f'Failed to insert the message ({channel_name}, {timestamp}, "{message.content}")')
 				self.message_tally[channel_name]['failure'] += 1

@@ -4,5 +4,5 @@ Archives
 
 Source/*
 !Source/*.py
-!Source/config.template.json
+!Source/config.json.template
 !Source/requirements.txt

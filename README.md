@@ -40,7 +40,7 @@ This section goes through every necessary step in order to generate the highligh
 
 Note that, even if you don't want to run the bot, the client ID and access token are still required by the `highlight.py` script if the `get_vods_from_api` option is enabled. For more information on generating an access token, refer to [this page](https://dev.twitch.tv/docs/cli/token-command). You can also use the [Twitch Token Generator](https://twitchtokengenerator.com/) to quickly generate tokens for testing purposes. In this case, select the `chat:read` scope, uncheck any others, and generate the client ID, access token, and refresh token.
 
-2. Make a copy of the [`config.template.json`](Source/config.template.json) file, rename it to `config.json`, and change the required options. Most of them can be left with their default values.
+2. Make a copy of the [`config.json.template`](Source/config.json.template) file, rename it to `config.json`, and change the required options. Most of them can be left with their default values.
 
 	* `common`: options that apply to all scripts.
 
